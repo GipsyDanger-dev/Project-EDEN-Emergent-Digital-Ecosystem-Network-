@@ -4,3 +4,4 @@ export * from './identity';
 export * from './state';
 export * from './citizen';
 export * from './needs';
+export * from './goals';

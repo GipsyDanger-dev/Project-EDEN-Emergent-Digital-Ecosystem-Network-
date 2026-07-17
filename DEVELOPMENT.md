@@ -580,14 +580,23 @@ Hotfix lebih diprioritaskan daripada fitur baru jika stabilitas proyek terganggu
 | Drive System | ✅ | Basic needs, decay, thresholds |
 | Goal System | ✅ | Goal generation, prioritization |
 
-### Sprint 2 — v0.1 World (Next)
+### Sprint 2 — v0.1 World ✅
 
 | Task | Status | Detail |
 |------|--------|--------|
-| World Engine | ☐ | Map, time, resources |
-| Tick Lifecycle | ☐ | Simulation loop |
-| Event Bus | ☐ | Event-driven architecture |
-| Rendering | ☐ | ThreeJS, camera, citizen view |
+| World Engine | ✅ | Map generation, time system, resource management |
+| Tick Lifecycle | ✅ | Simulation loop, phase orchestration |
+| Event Bus | ✅ | Event-driven architecture, pub/sub |
+| Rendering | ✅ | ThreeJS world scene, citizen panel, time display |
+
+### Sprint 3 — v0.1 Polish (Next)
+
+| Task | Status | Detail |
+|------|--------|--------|
+| History System | ☐ | Event recording, timeline |
+| Testing | ☐ | Unit tests, integration tests |
+| Integration | ☐ | Connect all systems |
+| Documentation | ☐ | Update all docs |
 
 ---
 
@@ -595,4 +604,4 @@ Hotfix lebih diprioritaskan daripada fitur baru jika stabilitas proyek terganggu
 
 | Date | Version | Change |
 |------|---------|--------|
-| 2026-07-17 | 0.1.0 | Sprint 0 & 1 completed |
+| 2026-07-17 | 0.1.0 | Sprint 0, 1, & 2 completed |

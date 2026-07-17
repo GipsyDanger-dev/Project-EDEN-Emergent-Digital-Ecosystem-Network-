@@ -556,3 +556,43 @@ Tidak boleh merge kode yang gagal build.
 Tidak boleh merge fitur yang belum selesai.
 Tidak boleh merge dokumentasi yang bertentangan dengan implementasi.
 Hotfix lebih diprioritaskan daripada fitur baru jika stabilitas proyek terganggu.
+
+---
+
+## 26. Sprint Progress
+
+### Sprint 0 — Project Setup ✅
+
+| Task | Status | Detail |
+|------|--------|--------|
+| Documentation Finalization | ✅ | PROJECT.md, PRD.md, ARCHITECTURE.md |
+| Monorepo Scaffolding | ✅ | Turborepo, packages, apps |
+| CI/CD Basics | ✅ | GitHub Actions workflow |
+| Docker Setup | ✅ | docker-compose.yml |
+
+### Sprint 1 — v0.1 Core ✅
+
+| Task | Status | Detail |
+|------|--------|--------|
+| Citizen Agent | ✅ | Identity, state, location, basic actions |
+| AI Brain | ✅ | Perception, attention, planning, decision |
+| Memory System | ✅ | Short-term, long-term, working memory |
+| Drive System | ✅ | Basic needs, decay, thresholds |
+| Goal System | ✅ | Goal generation, prioritization |
+
+### Sprint 2 — v0.1 World (Next)
+
+| Task | Status | Detail |
+|------|--------|--------|
+| World Engine | ☐ | Map, time, resources |
+| Tick Lifecycle | ☐ | Simulation loop |
+| Event Bus | ☐ | Event-driven architecture |
+| Rendering | ☐ | ThreeJS, camera, citizen view |
+
+---
+
+## Changelog
+
+| Date | Version | Change |
+|------|---------|--------|
+| 2026-07-17 | 0.1.0 | Sprint 0 & 1 completed |

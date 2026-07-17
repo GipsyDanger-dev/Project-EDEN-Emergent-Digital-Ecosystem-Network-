@@ -589,14 +589,14 @@ Hotfix lebih diprioritaskan daripada fitur baru jika stabilitas proyek terganggu
 | Event Bus | ✅ | Event-driven architecture, pub/sub |
 | Rendering | ✅ | ThreeJS world scene, citizen panel, time display |
 
-### Sprint 3 — v0.1 Polish (Next)
+### Sprint 3 — v0.1 Polish ✅
 
 | Task | Status | Detail |
 |------|--------|--------|
-| History System | ☐ | Event recording, timeline |
-| Testing | ☐ | Unit tests, integration tests |
-| Integration | ☐ | Connect all systems |
-| Documentation | ☐ | Update all docs |
+| History System | ✅ | Event recording, timeline, query |
+| Testing | ✅ | 39 unit tests (citizen: 13, engine: 19, ai: 7) |
+| Integration | ✅ | Connect citizen, AI, world, engine systems |
+| Vitest Config | ✅ | Vitest config for all packages |
 
 ---
 
@@ -604,4 +604,4 @@ Hotfix lebih diprioritaskan daripada fitur baru jika stabilitas proyek terganggu
 
 | Date | Version | Change |
 |------|---------|--------|
-| 2026-07-17 | 0.1.0 | Sprint 0, 1, & 2 completed |
+| 2026-07-17 | 0.1.0 | Sprint 0, 1, 2, & 3 completed |

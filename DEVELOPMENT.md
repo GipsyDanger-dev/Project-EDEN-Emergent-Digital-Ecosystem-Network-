@@ -597,6 +597,9 @@ Hotfix lebih diprioritaskan daripada fitur baru jika stabilitas proyek terganggu
 | Testing | ✅ | 39 unit tests (citizen: 13, engine: 19, ai: 7) |
 | Integration | ✅ | Connect citizen, AI, world, engine systems |
 | Vitest Config | ✅ | Vitest config for all packages |
+| AI Brain Integration | ✅ | Brain integrated into tick loop |
+| Local Brain | ✅ | Decision making without LLM |
+| Thought Display | ✅ | Show citizen thoughts in UI |
 
 ---
 

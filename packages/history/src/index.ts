@@ -2,4 +2,4 @@
 
 export * from './events';
 export * from './timeline';
-export * from './replay';
+export * from './history';

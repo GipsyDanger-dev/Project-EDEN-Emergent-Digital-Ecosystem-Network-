@@ -23,39 +23,56 @@ interface CitizenState {
     fear: number;
   };
   thought?: string;
+  action?: string;
   explanation?: string;
+  lastDecision?: string;
+  history: string[];
 }
 
 const INITIAL_CITIZENS: CitizenState[] = [
   {
     id: '1',
-    name: 'Alice',
+    name: 'Aria',
     position: [2, 0.5, 2],
     color: '#ef4444',
-    age: 25,
+    age: 28,
     gender: 'female',
-    needs: { hunger: 70, energy: 80, social: 50, safety: 60 },
-    emotions: { happiness: 20, sadness: -10, anger: 0, fear: -5 },
+    needs: { hunger: 72, energy: 85, social: 45, safety: 68 },
+    emotions: { happiness: 25, sadness: -8, anger: 3, fear: -2 },
+    history: [],
   },
   {
     id: '2',
-    name: 'Bob',
+    name: 'Marcus',
     position: [-3, 0.5, 4],
     color: '#3b82f6',
-    age: 30,
+    age: 34,
     gender: 'male',
-    needs: { hunger: 50, energy: 60, social: 70, safety: 80 },
-    emotions: { happiness: 30, sadness: 0, anger: -10, fear: 0 },
+    needs: { hunger: 55, energy: 62, social: 78, safety: 82 },
+    emotions: { happiness: 35, sadness: -5, anger: -8, fear: 0 },
+    history: [],
   },
   {
     id: '3',
-    name: 'Charlie',
+    name: 'Luna',
     position: [5, 0.5, -2],
     color: '#22c55e',
-    age: 22,
+    age: 24,
+    gender: 'female',
+    needs: { hunger: 88, energy: 42, social: 28, safety: 71 },
+    emotions: { happiness: 12, sadness: 8, anger: -3, fear: 15 },
+    history: [],
+  },
+  {
+    id: '4',
+    name: 'Orion',
+    position: [-5, 0.5, -3],
+    color: '#f59e0b',
+    age: 31,
     gender: 'male',
-    needs: { hunger: 85, energy: 45, social: 30, safety: 70 },
-    emotions: { happiness: 10, sadness: 5, anger: -5, fear: 10 },
+    needs: { hunger: 65, energy: 78, social: 55, safety: 90 },
+    emotions: { happiness: 40, sadness: -12, anger: -5, fear: -8 },
+    history: [],
   },
 ];
 
@@ -63,72 +80,200 @@ const MOCK_RESOURCES = [
   { id: 'r1', type: 'food', position: [5, 0.2, 3] as [number, number, number], amount: 100 },
   { id: 'r2', type: 'water', position: [-4, 0.2, -2] as [number, number, number], amount: 150 },
   { id: 'r3', type: 'wood', position: [3, 0.2, -4] as [number, number, number], amount: 80 },
+  { id: 'r4', type: 'stone', position: [-6, 0.2, 5] as [number, number, number], amount: 120 },
+  { id: 'r5', type: 'food', position: [7, 0.2, -5] as [number, number, number], amount: 90 },
 ];
 
-// Local brain simulation
-function simulateBrain(citizen: CitizenState, tick: number): { thought: string; explanation: string } {
+// Advanced local brain simulation
+function simulateBrain(citizen: CitizenState, tick: number, allCitizens: CitizenState[]): {
+  thought: string;
+  action: string;
+  explanation: string;
+} {
   const needs = citizen.needs;
   const mostUrgent = Object.entries(needs)
     .sort(([, a], [, b]) => a - b)[0];
 
   const [needName, needValue] = mostUrgent;
 
+  // Find nearby citizens
+  const nearbyCitizens = allCitizens
+    .filter(c => c.id !== citizen.id)
+    .map(c => ({
+      ...c,
+      distance: Math.sqrt(
+        Math.pow(c.position[0] - citizen.position[0], 2) +
+        Math.pow(c.position[2] - citizen.position[2], 2)
+      ),
+    }))
+    .filter(c => c.distance < 10)
+    .sort((a, b) => a.distance - b.distance);
+
   let thought = '';
   let action = 'idle';
-  let reason = '';
+  let explanation = '';
 
-  if (needValue < 30) {
-    thought = `My ${needName} is critically low (${Math.round(needValue)}). I must address this immediately.`;
-    action = `seek_${needName}`;
-    reason = `${needName} is critical at ${Math.round(needValue)}%`;
-  } else if (needValue < 60) {
-    const feeling = needName === 'hunger' ? 'hungry' : needName === 'energy' ? 'tired' : needName === 'social' ? 'lonely' : 'unsafe';
-    thought = `I'm starting to feel ${feeling}.`;
-    action = `seek_${needName}`;
-    reason = `${needName} is getting low at ${Math.round(needValue)}%`;
+  // Complex decision making
+  if (needValue < 25) {
+    // Critical need
+    const actions: Record<string, string> = {
+      hunger: 'find_food',
+      energy: 'find_rest',
+      social: 'find_companion',
+      safety: 'find_shelter',
+    };
+
+    const thoughts: Record<string, string> = {
+      hunger: `I'm starving! My hunger is at ${Math.round(needValue)}%. I need to find food immediately or I'll collapse.`,
+      energy: `I can barely keep my eyes open. Energy at ${Math.round(needValue)}%. I must rest now.`,
+      social: `I feel so alone... Social need at ${Math.round(needValue)}%. I need to talk to someone.`,
+      safety: `Something feels wrong. Safety at ${Math.round(needValue)}%. I need to find shelter.`,
+    };
+
+    thought = thoughts[needName];
+    action = actions[needName];
+    explanation = `Critical ${needName} detected (${Math.round(needValue)}%). Taking immediate action: ${action}.`;
+  } else if (needValue < 50) {
+    // Moderate need - consider context
+    if (nearbyCitizens.length > 0 && needName === 'social') {
+      const target = nearbyCitizens[0];
+      thought = `I see ${target.name} nearby (${target.distance.toFixed(1)}m away). Maybe I should talk to them.`;
+      action = 'approach_citizen';
+      explanation = `Social need at ${Math.round(needValue)}%. ${target.name} is nearby. Initiating social contact.`;
+    } else if (needName === 'hunger') {
+      thought = `Getting hungry. Hunger at ${Math.round(needValue)}%. I should look for food sources.`;
+      action = 'search_food';
+      explanation = `Hunger rising to ${Math.round(needValue)}%. Scanning environment for food.`;
+    } else {
+      thought = `My ${needName} is declining (${Math.round(needValue)}%). I should address this soon.`;
+      action = `monitor_${needName}`;
+      explanation = `${needName} at ${Math.round(needValue)}%. Monitoring situation.`;
+    }
   } else {
-    const thoughts = [
-      'Everything seems fine. I wonder what I should do next.',
-      'This is a nice day. Maybe I should explore.',
-      'I feel good. Perhaps I should meet someone.',
-      'The world is interesting. Let me look around.',
-    ];
-    thought = thoughts[tick % thoughts.length];
-    action = 'look_around';
-    reason = 'Exploring the environment';
+    // All needs satisfied - explore or socialize
+    if (nearbyCitizens.length > 0 && Math.random() > 0.5) {
+      const target = nearbyCitizens[0];
+      const socialThoughts = [
+        `${target.name} looks interesting. Maybe I should introduce myself.`,
+        `I wonder what ${target.name} is thinking about.`,
+        `It would be nice to have a conversation with ${target.name}.`,
+      ];
+      thought = socialThoughts[tick % socialThoughts.length];
+      action = 'socialize';
+      explanation = `All needs stable. Social opportunity detected with ${target.name}.`;
+    } else {
+      const exploreThoughts = [
+        `Everything looks peaceful. I wonder what's beyond that hill.`,
+        `The weather is nice today. Perfect for exploring.`,
+        `I feel content. Maybe I'll take a walk.`,
+        `This is a good time to gather my thoughts.`,
+      ];
+      thought = exploreThoughts[tick % exploreThoughts.length];
+      action = 'explore';
+      explanation = `All needs satisfied. Engaging in exploration.`;
+    }
   }
 
-  const explanation = `As ${citizen.name}, I decided to ${action} because ${reason}. ` +
-    `My needs are: hunger=${Math.round(needs.hunger)}, energy=${Math.round(needs.energy)}, ` +
-    `social=${Math.round(needs.social)}, safety=${Math.round(needs.safety)}.`;
-
-  return { thought, explanation };
+  return { thought, action, explanation };
 }
 
 function simulateNeedsUpdate(citizen: CitizenState): CitizenState {
+  // Non-linear decay based on personality
+  const decayModifiers = {
+    hunger: citizen.needs.hunger < 30 ? 0.8 : 1.2,
+    energy: citizen.needs.energy < 30 ? 0.7 : 1.1,
+    social: citizen.needs.social < 30 ? 0.6 : 1.0,
+    safety: citizen.needs.safety < 30 ? 0.5 : 1.0,
+  };
+
   return {
     ...citizen,
     needs: {
-      hunger: Math.max(0, citizen.needs.hunger - 0.5),
-      energy: Math.max(0, citizen.needs.energy - 0.3),
-      social: Math.max(0, citizen.needs.social - 0.2),
-      safety: Math.max(0, citizen.needs.safety - 0.1),
+      hunger: Math.max(0, citizen.needs.hunger - 0.4 * decayModifiers.hunger),
+      energy: Math.max(0, citizen.needs.energy - 0.25 * decayModifiers.energy),
+      social: Math.max(0, citizen.needs.social - 0.15 * decayModifiers.social),
+      safety: Math.max(0, citizen.needs.safety - 0.1 * decayModifiers.safety),
     },
   };
 }
 
-function simulateMovement(citizen: CitizenState): CitizenState {
-  // Simple random movement
-  const newX = citizen.position[0] + (Math.random() - 0.5) * 0.5;
-  const newZ = citizen.position[2] + (Math.random() - 0.5) * 0.5;
+function simulateMovement(citizen: CitizenState, action: string): CitizenState {
+  let speed = 0.3;
+  let targetX = citizen.position[0];
+  let targetZ = citizen.position[2];
+
+  switch (action) {
+    case 'find_food':
+    case 'search_food':
+      // Move towards food resources
+      const foodResources = MOCK_RESOURCES.filter(r => r.type === 'food');
+      if (foodResources.length > 0) {
+        const closest = foodResources[0];
+        targetX = closest.position[0];
+        targetZ = closest.position[2];
+        speed = 0.5;
+      }
+      break;
+    case 'approach_citizen':
+    case 'socialize':
+      // Random movement towards center
+      targetX = citizen.position[0] + (Math.random() - 0.5) * 2;
+      targetZ = citizen.position[2] + (Math.random() - 0.5) * 2;
+      speed = 0.4;
+      break;
+    case 'explore':
+      // Random exploration
+      targetX = citizen.position[0] + (Math.random() - 0.5) * 3;
+      targetZ = citizen.position[2] + (Math.random() - 0.5) * 3;
+      speed = 0.2;
+      break;
+    default:
+      // Slight random movement
+      targetX = citizen.position[0] + (Math.random() - 0.5) * 0.5;
+      targetZ = citizen.position[2] + (Math.random() - 0.5) * 0.5;
+      speed = 0.1;
+  }
+
+  // Move towards target
+  const dx = targetX - citizen.position[0];
+  const dz = targetZ - citizen.position[2];
+  const dist = Math.sqrt(dx * dx + dz * dz);
+
+  let newX = citizen.position[0];
+  let newZ = citizen.position[2];
+
+  if (dist > 0.1) {
+    newX = citizen.position[0] + (dx / dist) * speed;
+    newZ = citizen.position[2] + (dz / dist) * speed;
+  }
 
   // Keep within bounds
-  const clampedX = Math.max(-9, Math.min(9, newX));
-  const clampedZ = Math.max(-9, Math.min(9, newZ));
+  newX = Math.max(-9, Math.min(9, newX));
+  newZ = Math.max(-9, Math.min(9, newZ));
 
   return {
     ...citizen,
-    position: [clampedX, 0.5, clampedZ],
+    position: [newX, 0.5, newZ],
+  };
+}
+
+function simulateEmotions(citizen: CitizenState): CitizenState {
+  const { needs } = citizen;
+
+  // Calculate emotions based on needs
+  const happiness = ((needs.hunger + needs.energy + needs.social + needs.safety) / 4 - 50) * 0.8;
+  const sadness = (50 - (needs.hunger + needs.energy + needs.social + needs.safety) / 4) * 0.5;
+  const anger = needs.safety < 30 ? 20 : needs.social < 20 ? 10 : 0;
+  const fear = needs.safety < 25 ? 30 : needs.safety < 40 ? 10 : -5;
+
+  return {
+    ...citizen,
+    emotions: {
+      happiness: Math.max(-100, Math.min(100, happiness)),
+      sadness: Math.max(-100, Math.min(100, sadness)),
+      anger: Math.max(-100, Math.min(100, anger)),
+      fear: Math.max(-100, Math.min(100, fear)),
+    },
   };
 }
 
@@ -143,6 +288,7 @@ export default function Home() {
   });
   const [isRunning, setIsRunning] = useState(true);
   const [tick, setTick] = useState(0);
+  const [selectedCitizenThoughts, setSelectedCitizenThoughts] = useState<string[]>([]);
 
   // Simulation loop
   useEffect(() => {
@@ -182,42 +328,71 @@ export default function Home() {
       });
 
       // Update citizens
-      setCitizens(prev => prev.map(citizen => {
-        // Update needs
-        const updated = simulateNeedsUpdate(citizen);
+      setCitizens(prev => {
+        const updated = prev.map(citizen => {
+          // Update needs
+          let updatedCitizen = simulateNeedsUpdate(citizen);
 
-        // Simulate brain every 5 ticks
-        let thought = citizen.thought;
-        let explanation = citizen.explanation;
-        if (tick % 5 === 0) {
-          const brain = simulateBrain(updated, tick);
-          thought = brain.thought;
-          explanation = brain.explanation;
-        }
+          // Simulate brain every 3 ticks
+          let thought = citizen.thought;
+          let action = citizen.action || 'idle';
+          let explanation = citizen.explanation;
 
-        // Move citizen
-        const moved = simulateMovement(updated);
+          if (tick % 3 === 0) {
+            const brain = simulateBrain(updatedCitizen, tick, prev);
+            thought = brain.thought;
+            action = brain.action;
+            explanation = brain.explanation;
 
-        return {
-          ...moved,
-          thought,
-          explanation,
-        };
-      }));
+            // Update history
+            const history = [...citizen.history];
+            if (thought) {
+              history.unshift(`[${tick}] ${thought}`);
+              if (history.length > 10) history.pop();
+            }
+
+            updatedCitizen = {
+              ...updatedCitizen,
+              thought,
+              action,
+              explanation,
+              history,
+            };
+          }
+
+          // Move citizen
+          const moved = simulateMovement(updatedCitizen, action);
+
+          // Update emotions
+          const withEmotions = simulateEmotions(moved);
+
+          return withEmotions;
+        });
+
+        return updated;
+      });
     }, 1000);
 
     return () => clearInterval(interval);
   }, [isRunning, tick]);
 
+  // Update selected citizen thoughts
+  useEffect(() => {
+    if (selectedCitizen) {
+      const citizen = citizens.find(c => c.id === selectedCitizen);
+      if (citizen) {
+        setSelectedCitizenThoughts(citizen.history);
+      }
+    }
+  }, [selectedCitizen, citizens]);
+
   const selectedCitizenData = selectedCitizen
     ? citizens.find((c) => c.id === selectedCitizen) || null
     : null;
 
-  const selectedThought = selectedCitizenData?.thought;
-  const selectedExplanation = selectedCitizenData?.explanation;
-
   return (
-    <main className="relative w-full h-screen bg-gray-950">
+    <main className="relative w-full h-screen bg-gray-950 overflow-hidden">
+      {/* 3D World */}
       <WorldScene
         width={20}
         height={20}
@@ -226,6 +401,7 @@ export default function Home() {
         onCitizenClick={setSelectedCitizen}
       />
 
+      {/* Time Display - Top Left */}
       <TimeDisplay
         time={time}
         stats={{
@@ -236,20 +412,89 @@ export default function Home() {
         onTogglePause={() => setIsRunning(!isRunning)}
       />
 
+      {/* Citizen Panel - Right Side */}
       <CitizenPanel
         citizen={selectedCitizenData}
-        thought={selectedThought}
-        explanation={selectedExplanation}
+        thoughts={selectedCitizenThoughts}
         onClose={() => setSelectedCitizen(null)}
       />
 
-      <div className="absolute bottom-4 left-4 bg-gray-900/95 rounded-lg shadow-xl p-4 text-white text-sm">
-        <p className="text-gray-400">
-          Click on a citizen to view their thoughts
-        </p>
-        <p className="text-gray-400 mt-1">
-          Drag to rotate, scroll to zoom
-        </p>
+      {/* Bottom Bar - Events Log */}
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gray-900/95 border-t border-gray-800 overflow-hidden">
+        <div className="p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+            <span className="text-xs font-mono text-gray-400 uppercase tracking-wider">Event Stream</span>
+          </div>
+          <div className="h-20 overflow-y-auto font-mono text-xs space-y-1">
+            {citizens.map(citizen => (
+              citizen.thought && (
+                <div key={citizen.id} className="flex items-start gap-2">
+                  <span className="text-gray-500">[{tick}]</span>
+                  <span style={{ color: citizen.color }} className="font-semibold">{citizen.name}:</span>
+                  <span className="text-gray-300">{citizen.thought}</span>
+                </div>
+              )
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Side Panel - World Stats */}
+      <div className="absolute left-4 bottom-36 w-48 bg-gray-900/95 rounded-lg shadow-xl p-3 text-white">
+        <h3 className="text-xs font-mono text-gray-400 uppercase tracking-wider mb-2">World Stats</h3>
+        <div className="space-y-1 text-xs">
+          <div className="flex justify-between">
+            <span className="text-gray-400">Citizens</span>
+            <span className="text-white">{citizens.length}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Resources</span>
+            <span className="text-white">{MOCK_RESOURCES.length}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Active Goals</span>
+            <span className="text-white">{citizens.filter(c => c.action && c.action !== 'idle').length}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-400">Avg. Happiness</span>
+            <span className="text-white">
+              {Math.round(citizens.reduce((sum, c) => sum + c.emotions.happiness, 0) / citizens.length)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="absolute right-4 bottom-36 bg-gray-900/95 rounded-lg shadow-xl p-3 text-white">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setIsRunning(!isRunning)}
+            className={`px-3 py-1.5 rounded text-xs font-medium ${
+              isRunning
+                ? 'bg-yellow-600 hover:bg-yellow-700'
+                : 'bg-green-600 hover:bg-green-700'
+            }`}
+          >
+            {isRunning ? 'Pause' : 'Resume'}
+          </button>
+          <button
+            onClick={() => {
+              setTick(0);
+              setTime({ timeOfDay: 600, day: 1, season: 'spring', year: 1 });
+              setCitizens(INITIAL_CITIZENS);
+            }}
+            className="px-3 py-1.5 rounded text-xs font-medium bg-gray-700 hover:bg-gray-600"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      {/* Keyboard Hints */}
+      <div className="absolute top-4 right-4 text-xs text-gray-500 space-y-1">
+        <p>Click citizen to view thoughts</p>
+        <p>Drag to rotate • Scroll to zoom</p>
       </div>
     </main>
   );

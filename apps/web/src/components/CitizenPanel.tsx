@@ -4,6 +4,8 @@ import React from 'react';
 
 interface CitizenPanelProps {
   citizen: CitizenData | null;
+  thought?: string;
+  explanation?: string;
   onClose?: () => void;
 }
 
@@ -49,11 +51,11 @@ function NeedBar({ label, value }: { label: string; value: number }) {
   );
 }
 
-export function CitizenPanel({ citizen, onClose }: CitizenPanelProps) {
+export function CitizenPanel({ citizen, thought, explanation, onClose }: CitizenPanelProps) {
   if (!citizen) return null;
 
   return (
-    <div className="absolute top-4 right-4 w-72 bg-gray-900/95 rounded-lg shadow-xl p-4 text-white">
+    <div className="absolute top-4 right-4 w-80 bg-gray-900/95 rounded-lg shadow-xl p-4 text-white max-h-[90vh] overflow-y-auto">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-bold">{citizen.name}</h2>
         <button
@@ -67,6 +69,25 @@ export function CitizenPanel({ citizen, onClose }: CitizenPanelProps) {
       <div className="mb-4 text-sm text-gray-400">
         <p>Age: {citizen.age} | Gender: {citizen.gender}</p>
       </div>
+
+      {/* Brain Section */}
+      {thought && (
+        <div className="mb-4 p-3 bg-gray-800 rounded-lg">
+          <h3 className="text-sm font-semibold mb-2 text-cyan-400 flex items-center gap-2">
+            <span className="text-lg">🧠</span> Thought
+          </h3>
+          <p className="text-sm text-gray-300 italic">"{thought}"</p>
+        </div>
+      )}
+
+      {explanation && (
+        <div className="mb-4 p-3 bg-gray-800 rounded-lg">
+          <h3 className="text-sm font-semibold mb-2 text-purple-400 flex items-center gap-2">
+            <span className="text-lg">💬</span> Decision
+          </h3>
+          <p className="text-sm text-gray-300">{explanation}</p>
+        </div>
+      )}
 
       <div className="mb-4">
         <h3 className="text-sm font-semibold mb-2 text-gray-300">Needs</h3>

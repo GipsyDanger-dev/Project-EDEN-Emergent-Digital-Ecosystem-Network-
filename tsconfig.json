@@ -1,0 +1,17 @@
+{
+  "extends": "./configs/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/engine" },
+    { "path": "packages/ai" },
+    { "path": "packages/citizen" },
+    { "path": "packages/history" },
+    { "path": "packages/db" },
+    { "path": "apps/server" },
+    { "path": "apps/web" }
+  ]
+}

@@ -1,9 +1,7 @@
 // Core utilities for EDEN
 
-import { v4 as uuidv4 } from 'uuid';
-
 export function generateId(): string {
-  return uuidv4();
+  return crypto.randomUUID();
 }
 
 export function clamp(value: number, min: number, max: number): number {

@@ -2,7 +2,7 @@
 
 export const TICK_RATE = 1000; // ms per tick
 
-export const NEED_DECAY rates = {
+export const NEED_DECAY_RATES = {
   hunger: -0.5,
   energy: -0.3,
   social: -0.2,

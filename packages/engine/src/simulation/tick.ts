@@ -1,12 +1,17 @@
 import { Citizen, Event } from '@eden/core';
-import { World, updateWorld } from '../world';
+import { World, updateWorld, findResourceForCitizen } from '../world';
 import { EventBus, emitEvent } from '../events';
+import { think, thinkLocal, BrainConfig, BrainInput, BrainOutput, createBrainConfig } from '@eden/ai';
+import { createMemorySystem, addMemory, MemorySystem } from '@eden/ai';
+import { getTimeOfDayName } from '../time';
 
 export interface TickContext {
   world: World;
   tick: number;
   events: Event[];
   startTime: number;
+  brainConfig: BrainConfig | null;
+  citizenMemories: Map<string, MemorySystem>;
 }
 
 export interface TickResult {
@@ -19,6 +24,8 @@ export interface TickResult {
 export interface CitizenUpdate {
   citizenId: string;
   action: string;
+  thought: string;
+  explanation: string;
   events: Event[];
 }
 
@@ -29,118 +36,279 @@ export type TickPhase =
   | 'interaction'
   | 'persist';
 
-export async function executeTick(
+export function createTickContext(
   world: World,
-  eventBus: EventBus
-): Promise<TickResult> {
-  const startTime = Date.now();
-  const tick = world.time.currentTick;
-  const context: TickContext = {
-    world,
-    tick,
-    events: [],
-    startTime,
-  };
+  brainConfig: BrainConfig | null = null
+): TickContext {
+  const citizenMemories = new Map<string, MemorySystem>();
 
-  // Phase 1: World Update
-  const worldUpdated = await phaseWorldUpdate(context);
-
-  // Phase 2: Citizen Think (parallel)
-  const citizenUpdates = await phaseCitizenThink(worldUpdated);
-
-  // Phase 3: Citizen Act
-  const worldWithActions = await phaseCitizenAct(worldUpdated, citizenUpdates);
-
-  // Phase 4: Interactions
-  const worldWithInteractions = await phaseInteractions(worldWithActions);
-
-  // Phase 5: Persist
-  await phasePersist(worldWithInteractions, context.events);
-
-  // Emit all events
-  for (const event of context.events) {
-    emitEvent(eventBus, event);
+  // Initialize memories for each citizen
+  for (const citizen of world.citizens) {
+    citizenMemories.set(citizen.identity.id, createMemorySystem(citizen.identity.id));
   }
 
   return {
-    world: worldWithInteractions,
-    events: context.events,
+    world,
+    tick: world.time.currentTick,
+    events: [],
+    startTime: Date.now(),
+    brainConfig,
+    citizenMemories,
+  };
+}
+
+export async function executeTick(
+  context: TickContext
+): Promise<TickResult> {
+  const { world, startTime, brainConfig, citizenMemories } = context;
+  const tick = world.time.currentTick;
+  const allEvents: Event[] = [];
+
+  // Phase 1: World Update
+  const worldUpdated = updateWorld(world);
+
+  // Phase 2: Citizen Think (parallel)
+  const citizenUpdates: CitizenUpdate[] = [];
+
+  for (const citizen of worldUpdated.citizens) {
+    if (!citizen.isAlive) continue;
+
+    // Get or create memory for this citizen
+    let memories = citizenMemories.get(citizen.identity.id);
+    if (!memories) {
+      memories = createMemorySystem(citizen.identity.id);
+      citizenMemories.set(citizen.identity.id, memories);
+    }
+
+    // Build perception
+    const perception = buildPerception(citizen, worldUpdated);
+
+    // Get current goal from citizen state
+    const currentGoal = getCurrentGoal(citizen);
+
+    // Think
+    const brainInput: BrainInput = {
+      citizen,
+      perception,
+      memories,
+      currentGoal,
+    };
+
+    let brainOutput: BrainOutput;
+
+    if (brainConfig) {
+      // Use LLM brain
+      brainOutput = await think(brainConfig, brainInput);
+    } else {
+      // Use local brain
+      brainOutput = thinkLocal(brainInput);
+    }
+
+    // Record decision as event
+    const decisionEvent: Event = {
+      id: crypto.randomUUID(),
+      type: 'DecisionMade',
+      timestamp: Date.now(),
+      citizenId: citizen.identity.id,
+      data: {
+        thought: brainOutput.thought,
+        action: brainOutput.decision.action,
+        target: brainOutput.decision.target,
+        reason: brainOutput.decision.reason,
+        explanation: brainOutput.explanation,
+      },
+      metadata: {
+        tick,
+        cause: brainConfig ? 'llm_brain' : 'local_brain',
+      },
+    };
+
+    allEvents.push(decisionEvent);
+
+    // Update memory with this decision
+    const updatedMemory = addMemory(memories, decisionEvent, 0.5);
+    citizenMemories.set(citizen.identity.id, updatedMemory);
+
+    citizenUpdates.push({
+      citizenId: citizen.identity.id,
+      action: brainOutput.decision.action,
+      thought: brainOutput.thought,
+      explanation: brainOutput.explanation,
+      events: [decisionEvent],
+    });
+  }
+
+  // Phase 3: Execute Actions
+  let currentWorld = worldUpdated;
+
+  for (const update of citizenUpdates) {
+    currentWorld = await executeAction(currentWorld, update, tick, allEvents);
+  }
+
+  // Emit all events
+  for (const event of allEvents) {
+    emitEvent(context.world.time ? context as any : { eventBus: { emit: () => {} } } as any, event);
+  }
+
+  return {
+    world: currentWorld,
+    events: allEvents,
     duration: Date.now() - startTime,
     citizenUpdates,
   };
 }
 
-async function phaseWorldUpdate(context: TickContext): Promise<World> {
-  return updateWorld(context.world);
-}
+function buildPerception(citizen: Citizen, world: World): BrainInput['perception'] {
+  const perceptionRange = 20;
 
-async function phaseCitizenThink(world: World): Promise<CitizenUpdate[]> {
-  const updates: CitizenUpdate[] = [];
+  // Find nearby citizens
+  const nearbyCitizens = world.citizens
+    .filter(c => c.identity.id !== citizen.identity.id && c.isAlive)
+    .map(c => ({
+      id: c.identity.id,
+      name: c.identity.name,
+      distance: calculateDistance(citizen.location, c.location),
+    }))
+    .filter(c => c.distance <= perceptionRange)
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, 5);
 
-  // Process each citizen (will be parallel in future)
-  for (const citizen of world.citizens) {
-    if (!citizen.isAlive) continue;
-
-    const update = await processCitizenThink(citizen, world);
-    updates.push(update);
-  }
-
-  return updates;
-}
-
-async function processCitizenThink(
-  citizen: Citizen,
-  world: World
-): Promise<CitizenUpdate> {
-  // Simple decision making for v0.1
-  const needs = citizen.state.needs;
-  let action = 'idle';
-
-  // Find most urgent need
-  const urgentNeed = Object.entries(needs)
-    .sort(([, a], [, b]) => a - b)[0];
-
-  if (urgentNeed && urgentNeed[1] < 50) {
-    action = `seek_${urgentNeed[0]}`;
-  }
+  // Find nearby resources
+  const nearbyResources = world.resources
+    .map(r => ({
+      id: r.id,
+      type: r.type,
+      amount: r.amount,
+      distance: calculateDistance(citizen.location, r.location),
+    }))
+    .filter(r => r.distance <= perceptionRange && r.amount > 0)
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, 5);
 
   return {
-    citizenId: citizen.identity.id,
-    action,
-    events: [],
+    nearbyCitizens,
+    nearbyResources,
+    timeOfDay: getTimeOfDayName(world.time.timeOfDay),
+    season: world.time.season,
   };
 }
 
-async function phaseCitizenAct(
-  world: World,
-  updates: CitizenUpdate[]
-): Promise<World> {
-  let currentWorld = world;
+function calculateDistance(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2);
+}
 
-  for (const update of updates) {
-    currentWorld = await executeCitizenAction(currentWorld, update);
+function getCurrentGoal(citizen: Citizen): string | null {
+  const needs = citizen.state.needs;
+  const mostUrgent = Object.entries(needs)
+    .sort(([, a], [, b]) => a - b)[0];
+
+  if (mostUrgent && mostUrgent[1] < 50) {
+    return `Satisfy ${mostUrgent[0]} (currently at ${Math.round(mostUrgent[1])}%)`;
   }
 
-  return currentWorld;
+  return null;
 }
 
-async function executeCitizenAction(
+async function executeAction(
   world: World,
-  update: CitizenUpdate
+  update: CitizenUpdate,
+  tick: number,
+  allEvents: Event[]
 ): Promise<World> {
-  // Simple action execution for v0.1
-  // Will be expanded with AI brain integration
+  const citizen = world.citizens.find(c => c.identity.id === update.citizenId);
+  if (!citizen) return world;
 
-  return world;
+  let newLocation = { ...citizen.location };
+
+  switch (update.action) {
+    case 'seek_hunger':
+    case 'seek_energy':
+      // Try to find food
+      const food = findResourceForCitizen(world, citizen, 'food');
+      if (food) {
+        // Move towards food
+        newLocation = moveTowards(citizen.location, food.location, 2);
+      }
+      break;
+
+    case 'seek_social':
+      // Move towards nearest citizen
+      if (update.events[0]?.data?.target) {
+        const target = world.citizens.find(
+          c => c.identity.id === (update.events[0].data as any).target
+        );
+        if (target) {
+          newLocation = moveTowards(citizen.location, target.location, 2);
+        }
+      }
+      break;
+
+    case 'socialize':
+      // Stay in place (socializing)
+      break;
+
+    case 'look_around':
+      // Random movement
+      newLocation = {
+        x: citizen.location.x + (Math.random() - 0.5) * 2,
+        y: citizen.location.y + (Math.random() - 0.5) * 2,
+        z: 0,
+      };
+      break;
+
+    default:
+      // Stay in place
+      break;
+  }
+
+  // Update citizen location
+  const updatedCitizens = world.citizens.map(c =>
+    c.identity.id === update.citizenId
+      ? { ...c, location: newLocation }
+      : c
+  );
+
+  // Record movement event if location changed
+  if (newLocation.x !== citizen.location.x || newLocation.y !== citizen.location.y) {
+    const moveEvent: Event = {
+      id: crypto.randomUUID(),
+      type: 'CitizenMoved',
+      timestamp: Date.now(),
+      citizenId: update.citizenId,
+      data: {
+        from: citizen.location,
+        to: newLocation,
+      },
+      metadata: {
+        tick,
+        cause: 'action_execution',
+      },
+    };
+    allEvents.push(moveEvent);
+  }
+
+  return {
+    ...world,
+    citizens: updatedCitizens,
+  };
 }
 
-async function phaseInteractions(world: World): Promise<World> {
-  // Handle citizen-citizen interactions
-  // Will be expanded in future sprints
-  return world;
-}
+function moveTowards(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  speed: number
+): { x: number; y: number; z: number } {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
 
-async function phasePersist(world: World, events: Event[]): Promise<void> {
-  // Save state to database
-  // Will be implemented with database layer
+  if (dist <= speed) {
+    return { x: to.x, y: to.y, z: 0 };
+  }
+
+  return {
+    x: from.x + (dx / dist) * speed,
+    y: from.y + (dy / dist) * speed,
+    z: 0,
+  };
 }

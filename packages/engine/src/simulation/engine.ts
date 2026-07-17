@@ -1,14 +1,20 @@
-import { World, createWorld } from '../world';
+import { World, createWorld, addCitizenToWorld } from '../world';
+import { Citizen } from '@eden/core';
 import { EventBus, createEventBus } from '../events';
-import { executeTick, TickResult } from './tick';
+import { BrainConfig, createBrainConfig } from '@eden/ai';
+import { executeTick, TickResult, createTickContext, TickContext } from './tick';
+import { MemorySystem, createMemorySystem } from '@eden/ai';
 
 export interface SimulationEngine {
   world: World;
   eventBus: EventBus;
   isRunning: boolean;
-  tickInterval: NodeJS.Timeout | null;
+  tickInterval: ReturnType<typeof setInterval> | null;
   onTick: ((result: TickResult) => void) | null;
   stats: SimulationStats;
+  brainConfig: BrainConfig | null;
+  citizenMemories: Map<string, MemorySystem>;
+  tickContext: TickContext | null;
 }
 
 export interface SimulationStats {
@@ -22,7 +28,8 @@ export function createSimulationEngine(
   worldName: string,
   mapWidth: number,
   mapHeight: number,
-  tickRate: number = 1000
+  tickRate: number = 1000,
+  brainConfig: BrainConfig | null = null
 ): SimulationEngine {
   const world = createWorld(worldName, mapWidth, mapHeight);
   world.time.tickRate = tickRate;
@@ -39,28 +46,62 @@ export function createSimulationEngine(
       totalDuration: 0,
       ticksPerSecond: 0,
     },
+    brainConfig,
+    citizenMemories: new Map(),
+    tickContext: null,
+  };
+}
+
+export function addCitizen(
+  engine: SimulationEngine,
+  citizen: Citizen
+): SimulationEngine {
+  const newWorld = addCitizenToWorld(engine.world, citizen);
+
+  // Initialize memory for new citizen
+  const memories = createMemorySystem(citizen.identity.id);
+  const newMemories = new Map(engine.citizenMemories);
+  newMemories.set(citizen.identity.id, memories);
+
+  return {
+    ...engine,
+    world: newWorld,
+    citizenMemories: newMemories,
   };
 }
 
 export function startSimulation(engine: SimulationEngine): SimulationEngine {
   if (engine.isRunning) return engine;
 
+  // Create tick context
+  let tickContext = createTickContext(engine.world, engine.brainConfig);
+  tickContext.citizenMemories = engine.citizenMemories;
+
   const tickRate = engine.world.time.tickRate;
 
   const interval = setInterval(async () => {
-    const result = await executeTick(engine.world, engine.eventBus);
+    try {
+      // Update tick context
+      tickContext.world = engine.world;
+      tickContext.tick = engine.world.time.currentTick;
 
-    // Update engine state
-    engine.world = result.world;
-    engine.stats.totalTicks++;
-    engine.stats.totalDuration += result.duration;
-    engine.stats.averageTickDuration =
-      engine.stats.totalDuration / engine.stats.totalTicks;
-    engine.stats.ticksPerSecond = 1000 / engine.stats.averageTickDuration;
+      const result = await executeTick(tickContext);
 
-    // Call callback if set
-    if (engine.onTick) {
-      engine.onTick(result);
+      // Update engine state
+      engine.world = result.world;
+      engine.citizenMemories = tickContext.citizenMemories;
+      engine.stats.totalTicks++;
+      engine.stats.totalDuration += result.duration;
+      engine.stats.averageTickDuration =
+        engine.stats.totalDuration / engine.stats.totalTicks;
+      engine.stats.ticksPerSecond = 1000 / engine.stats.averageTickDuration;
+
+      // Call callback if set
+      if (engine.onTick) {
+        engine.onTick(result);
+      }
+    } catch (error) {
+      console.error('Tick error:', error);
     }
   }, tickRate);
 
@@ -68,6 +109,7 @@ export function startSimulation(engine: SimulationEngine): SimulationEngine {
     ...engine,
     isRunning: true,
     tickInterval: interval,
+    tickContext,
   };
 }
 
@@ -92,6 +134,16 @@ export function resumeSimulation(engine: SimulationEngine): SimulationEngine {
   return startSimulation(engine);
 }
 
+export function setBrainConfig(
+  engine: SimulationEngine,
+  config: BrainConfig | null
+): SimulationEngine {
+  return {
+    ...engine,
+    brainConfig: config,
+  };
+}
+
 export function setTickCallback(
   engine: SimulationEngine,
   callback: (result: TickResult) => void
@@ -108,4 +160,12 @@ export function getSimulationStats(engine: SimulationEngine): SimulationStats {
 
 export function getWorldState(engine: SimulationEngine): World {
   return engine.world;
+}
+
+export function getCitizenThoughts(result: TickResult): Map<string, string> {
+  const thoughts = new Map<string, string>();
+  for (const update of result.citizenUpdates) {
+    thoughts.set(update.citizenId, update.thought);
+  }
+  return thoughts;
 }

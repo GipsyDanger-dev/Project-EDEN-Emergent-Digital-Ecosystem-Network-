@@ -7,3 +7,4 @@ export * from './decision';
 export * from './memory';
 export * from './brain';
 export * from './llm';
+export * from './local-brain';

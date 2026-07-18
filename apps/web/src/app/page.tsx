@@ -10,6 +10,7 @@ import {
   Memory,
   getGraphStats,
 } from '@eden/ai';
+import { generateAutoMemories, seedInitialMemories } from '../utils/memory-generator';
 
 function getTimeOfDayName(timeOfDay: number): string {
   if (timeOfDay < 600) return 'night';
@@ -71,6 +72,7 @@ const INITIAL_CITIZENS: CitizenState[] = [
     needs: { hunger: 72, energy: 85, social: 45, safety: 68 },
     emotions: { happiness: 25, sadness: -8, anger: 3, fear: -2 },
     history: [],
+    brain: seedInitialMemories(createObsidianBrain('1'), 80),
   },
   {
     id: '2',
@@ -82,6 +84,7 @@ const INITIAL_CITIZENS: CitizenState[] = [
     needs: { hunger: 55, energy: 62, social: 78, safety: 82 },
     emotions: { happiness: 35, sadness: -5, anger: -8, fear: 0 },
     history: [],
+    brain: seedInitialMemories(createObsidianBrain('2'), 80),
   },
   {
     id: '3',
@@ -93,6 +96,7 @@ const INITIAL_CITIZENS: CitizenState[] = [
     needs: { hunger: 88, energy: 42, social: 28, safety: 71 },
     emotions: { happiness: 12, sadness: 8, anger: -3, fear: 15 },
     history: [],
+    brain: seedInitialMemories(createObsidianBrain('3'), 80),
   },
   {
     id: '4',
@@ -104,6 +108,7 @@ const INITIAL_CITIZENS: CitizenState[] = [
     needs: { hunger: 65, energy: 78, social: 55, safety: 90 },
     emotions: { happiness: 40, sadness: -12, anger: -5, fear: -8 },
     history: [],
+    brain: seedInitialMemories(createObsidianBrain('4'), 80),
   },
 ];
 
@@ -502,6 +507,11 @@ export default function Home() {
             // Also update obsidian brain
             const brainResult2 = simulateBrain(updatedCitizen, tick, prev);
             brain = brainResult2.brain;
+
+            // Auto-generate memories for denser graph
+            if (tick % 3 === 0) {
+              brain = generateAutoMemories(brain, tick, citizen.name);
+            }
 
             // Play sound based on action
             if (soundEnabled && action !== citizen.action) {

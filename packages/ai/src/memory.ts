@@ -45,8 +45,12 @@ export function addMemory(
     associations: [],
   };
 
+  // Ensure shortTerm is an array
+  const currentShortTerm = Array.isArray(system.shortTerm) ? system.shortTerm : [];
+  const currentLongTerm = Array.isArray(system.longTerm) ? system.longTerm : [];
+
   // Add to short-term memory
-  let newShortTerm = [...system.shortTerm, memory];
+  let newShortTerm = [...currentShortTerm, memory];
 
   // Keep only last 100 memories in short-term
   if (newShortTerm.length > 100) {
@@ -55,7 +59,7 @@ export function addMemory(
       .filter(m => m.importance > 0.7)
       .slice(-10);
 
-    const newLongTerm = [...system.longTerm, ...toPromote];
+    const newLongTerm = [...currentLongTerm, ...toPromote];
 
     newShortTerm = newShortTerm.slice(-100);
 
@@ -77,8 +81,12 @@ export function retrieveMemory(
   query: string,
   limit: number = 5
 ): Memory[] {
+  // Ensure arrays
+  const shortTerm = Array.isArray(system.shortTerm) ? system.shortTerm : [];
+  const longTerm = Array.isArray(system.longTerm) ? system.longTerm : [];
+
   // Combine all memories
-  const allMemories = [...system.shortTerm, ...system.longTerm];
+  const allMemories = [...shortTerm, ...longTerm];
 
   // Simple keyword matching (to be enhanced with vector search later)
   const scored = allMemories.map(memory => ({
@@ -98,7 +106,8 @@ export function recallRecentMemory(
   system: MemorySystem,
   limit: number = 10
 ): Memory[] {
-  return system.shortTerm
+  const shortTerm = Array.isArray(system.shortTerm) ? system.shortTerm : [];
+  return [...shortTerm]
     .sort((a, b) => b.timestamp - a.timestamp)
     .slice(0, limit);
 }
@@ -107,22 +116,25 @@ export function recallImportantMemory(
   system: MemorySystem,
   limit: number = 10
 ): Memory[] {
-  return [...system.longTerm]
+  const longTerm = Array.isArray(system.longTerm) ? system.longTerm : [];
+  return [...longTerm]
     .sort((a, b) => b.importance - a.importance)
     .slice(0, limit);
 }
 
 export function decayMemories(system: MemorySystem): MemorySystem {
   const decayRate = 0.01;
+  const shortTerm = Array.isArray(system.shortTerm) ? system.shortTerm : [];
+  const longTerm = Array.isArray(system.longTerm) ? system.longTerm : [];
 
-  const newShortTerm = system.shortTerm
+  const newShortTerm = shortTerm
     .map(m => ({
       ...m,
       decay: Math.min(1, m.decay + decayRate),
     }))
     .filter(m => m.decay < 0.9);  // Remove heavily decayed memories
 
-  const newLongTerm = system.longTerm
+  const newLongTerm = longTerm
     .map(m => ({
       ...m,
       decay: Math.min(1, m.decay + decayRate * 0.1),  // Long-term decays slower

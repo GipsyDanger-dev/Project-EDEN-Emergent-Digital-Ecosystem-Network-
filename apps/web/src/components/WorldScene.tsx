@@ -1,14 +1,20 @@
 'use client';
 
-import React, { useRef, useMemo, useEffect } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Grid, Text } from '@react-three/drei';
+import React, { useRef, useMemo } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, Grid, Text, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 import {
-  CHARACTER_PRESETS,
-  PixelCharacterConfig,
-  generatePixelCharacterTexture,
-} from '../utils/pixel-art';
+  CHARACTER_PALETTES,
+  CharacterPalette,
+  BUILDING_SPRITES,
+  ANIMAL_SPRITES,
+  TREE_SPRITES,
+  RESOURCE_SPRITES,
+  createTextureFromPixels,
+  createCharacterTexture,
+  getRandomPalette,
+} from '../utils/pixel-art-sprites';
 
 interface WorldSceneProps {
   width: number;
@@ -48,21 +54,20 @@ interface ResourceData {
   amount: number;
 }
 
-// Get character preset based on citizen color
-function getCharacterPreset(citizen: CitizenData): PixelCharacterConfig {
-  const presets = Object.values(CHARACTER_PRESETS);
-  const index = parseInt(citizen.id) % presets.length;
-  return presets[index];
+// Get character palette based on citizen ID
+function getCharacterPalette(citizen: CitizenData): CharacterPalette {
+  const index = parseInt(citizen.id) % CHARACTER_PALETTES.length;
+  return CHARACTER_PALETTES[index];
 }
 
-// Pixel Art Character Sprite
+// Pixel Art Character Sprite with animation
 function PixelCharacter({ citizen, onClick }: { citizen: CitizenData; onClick?: () => void }) {
   const spriteRef = useRef<THREE.Sprite>(null);
-  const preset = getCharacterPreset(citizen);
+  const palette = getCharacterPalette(citizen);
 
   const texture = useMemo(() => {
-    return generatePixelCharacterTexture(preset);
-  }, [preset]);
+    return createCharacterTexture(palette);
+  }, [palette]);
 
   const material = useMemo(() => {
     return new THREE.SpriteMaterial({
@@ -78,8 +83,19 @@ function PixelCharacter({ citizen, onClick }: { citizen: CitizenData; onClick?: 
     }
   });
 
+  // Get emotion color
+  const getEmotionColor = () => {
+    const { happiness, sadness, anger, fear } = citizen.emotions;
+    if (anger > 30) return '#ef4444';
+    if (fear > 30) return '#a855f7';
+    if (sadness > 30) return '#3b82f6';
+    if (happiness > 30) return '#fbbf24';
+    return '#22c55e';
+  };
+
   return (
     <group>
+      {/* Character sprite */}
       <sprite
         ref={spriteRef}
         position={citizen.position}
@@ -91,43 +107,180 @@ function PixelCharacter({ citizen, onClick }: { citizen: CitizenData; onClick?: 
       >
         <primitive object={material} attach="material" />
       </sprite>
+
       {/* Name tag */}
-      <Text
-        position={[citizen.position[0], citizen.position[1] + 1.2, citizen.position[2]]}
-        fontSize={0.15}
-        color="white"
-        anchorX="center"
-        anchorY="middle"
-        outlineWidth={0.02}
-        outlineColor="black"
-      >
-        {citizen.name}
-      </Text>
+      <Billboard position={[citizen.position[0], citizen.position[1] + 1.3, citizen.position[2]]}>
+        <Text
+          fontSize={0.12}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={0.02}
+          outlineColor="black"
+          font={undefined}
+        >
+          {citizen.name}
+        </Text>
+      </Billboard>
+
+      {/* Emotion indicator */}
+      <Billboard position={[citizen.position[0], citizen.position[1] + 1.5, citizen.position[2]]}>
+        <mesh>
+          <circleGeometry args={[0.08, 16]} />
+          <meshBasicMaterial color={getEmotionColor()} />
+        </mesh>
+      </Billboard>
+
       {/* Action indicator */}
       {citizen.action && citizen.action !== 'idle' && (
-        <group position={[citizen.position[0], citizen.position[1] + 1.5, citizen.position[2]]}>
-          <sprite scale={[0.3, 0.3, 1]}>
-            <spriteMaterial color="#fbbf24" transparent opacity={0.8} />
-          </sprite>
-        </group>
+        <Billboard position={[citizen.position[0] + 0.3, citizen.position[1] + 1.1, citizen.position[2]]}>
+          <Text
+            fontSize={0.08}
+            color="#fbbf24"
+            anchorX="center"
+            anchorY="middle"
+          >
+            {getActionEmoji(citizen.action)}
+          </Text>
+        </Billboard>
       )}
     </group>
   );
 }
 
-// Resource Sprite
-function ResourceSprite({ resource }: { resource: ResourceData }) {
+function getActionEmoji(action: string): string {
+  switch (action) {
+    case 'find_food':
+    case 'search_food':
+      return '🍖';
+    case 'find_rest':
+      return '💤';
+    case 'socialize':
+    case 'approach_citizen':
+      return '💬';
+    case 'explore':
+      return '🔍';
+    case 'find_companion':
+      return '👥';
+    case 'find_shelter':
+      return '🏠';
+    default:
+      return '❓';
+  }
+}
+
+// Building Sprite
+function BuildingSprite({ sprite, position }: { sprite: typeof BUILDING_SPRITES[0]; position: [number, number, number] }) {
+  const texture = useMemo(() => {
+    return createTextureFromPixels(sprite.pixels, sprite.palette);
+  }, [sprite]);
+
+  const material = useMemo(() => {
+    return new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+    });
+  }, [texture]);
+
+  return (
+    <sprite
+      position={[position[0], position[1] + sprite.height * 0.02, position[2]]}
+      scale={[sprite.width * 0.05, sprite.height * 0.05, 1]}
+    >
+      <primitive object={material} attach="material" />
+    </sprite>
+  );
+}
+
+// Tree Sprite
+function TreeSprite({ sprite, position }: { sprite: typeof TREE_SPRITES[0]; position: [number, number, number] }) {
+  const texture = useMemo(() => {
+    return createTextureFromPixels(sprite.pixels, sprite.palette);
+  }, [sprite]);
+
+  const material = useMemo(() => {
+    return new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+    });
+  }, [texture]);
+
   const spriteRef = useRef<THREE.Sprite>(null);
 
-  const color = useMemo(() => {
-    switch (resource.type) {
-      case 'food': return '#f97316';
-      case 'water': return '#3b82f6';
-      case 'wood': return '#84cc16';
-      case 'stone': return '#6b7280';
-      default: return '#ffffff';
+  useFrame((state) => {
+    if (spriteRef.current) {
+      // Subtle swaying animation
+      spriteRef.current.position.x = position[0] + Math.sin(state.clock.elapsedTime * 0.5 + position[0]) * 0.02;
     }
+  });
+
+  return (
+    <sprite
+      ref={spriteRef}
+      position={[position[0], position[1] + 0.5, position[2]]}
+      scale={[1.5, 2, 1]}
+    >
+      <primitive object={material} attach="material" />
+    </sprite>
+  );
+}
+
+// Animal Sprite
+function AnimalSpriteComponent({ animal, position }: { animal: typeof ANIMAL_SPRITES[0]; position: [number, number, number] }) {
+  const texture = useMemo(() => {
+    const colorMap: Record<number, string> = {};
+    animal.palette.forEach((color, index) => {
+      colorMap[index + 1] = color;
+    });
+    return createTextureFromPixels(animal.frames[0], colorMap);
+  }, [animal]);
+
+  const material = useMemo(() => {
+    return new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+    });
+  }, [texture]);
+
+  const spriteRef = useRef<THREE.Sprite>(null);
+
+  useFrame((state) => {
+    if (spriteRef.current) {
+      // Random movement
+      spriteRef.current.position.x = position[0] + Math.sin(state.clock.elapsedTime * 0.3 + position[0]) * 0.3;
+      spriteRef.current.position.z = position[2] + Math.cos(state.clock.elapsedTime * 0.2 + position[2]) * 0.3;
+    }
+  });
+
+  return (
+    <sprite
+      ref={spriteRef}
+      position={[position[0], position[1] + 0.3, position[2]]}
+      scale={[0.6, 0.6, 1]}
+    >
+      <primitive object={material} attach="material" />
+    </sprite>
+  );
+}
+
+// Resource Sprite
+function ResourceSprite({ resource }: { resource: ResourceData }) {
+  const spriteConfig = useMemo(() => {
+    return RESOURCE_SPRITES.find(r => r.id.includes(resource.type)) || RESOURCE_SPRITES[0];
   }, [resource.type]);
+
+  const texture = useMemo(() => {
+    return createTextureFromPixels(spriteConfig.pixels, spriteConfig.palette);
+  }, [spriteConfig]);
+
+  const material = useMemo(() => {
+    return new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+    });
+  }, [texture]);
+
+  const spriteRef = useRef<THREE.Sprite>(null);
 
   useFrame((state) => {
     if (spriteRef.current) {
@@ -136,8 +289,8 @@ function ResourceSprite({ resource }: { resource: ResourceData }) {
   });
 
   return (
-    <sprite ref={spriteRef} position={resource.position} scale={[0.4, 0.4, 1]}>
-      <spriteMaterial color={color} transparent opacity={0.9} />
+    <sprite ref={spriteRef} position={resource.position} scale={[0.5, 0.5, 1]}>
+      <primitive object={material} attach="material" />
     </sprite>
   );
 }
@@ -155,20 +308,31 @@ function Ground({ width, height }: { width: number; height: number }) {
     ctx.fillRect(0, 0, 512, 512);
 
     // Add grass texture
-    for (let i = 0; i < 1000; i++) {
+    for (let i = 0; i < 2000; i++) {
       const x = Math.random() * 512;
       const y = Math.random() * 512;
-      const shade = Math.random() * 20 - 10;
+      const shade = Math.random() * 30 - 15;
       ctx.fillStyle = `rgb(${45 + shade}, ${90 + shade}, ${39 + shade})`;
       ctx.fillRect(x, y, 2, 2);
     }
 
     // Add some darker patches
+    for (let i = 0; i < 30; i++) {
+      const x = Math.random() * 512;
+      const y = Math.random() * 512;
+      const size = Math.random() * 40 + 10;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Add some lighter patches
     for (let i = 0; i < 20; i++) {
       const x = Math.random() * 512;
       const y = Math.random() * 512;
-      const size = Math.random() * 30 + 10;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+      const size = Math.random() * 20 + 5;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
       ctx.beginPath();
       ctx.arc(x, y, size, 0, Math.PI * 2);
       ctx.fill();
@@ -189,20 +353,28 @@ function Ground({ width, height }: { width: number; height: number }) {
   );
 }
 
-// Water tiles
+// Water with animated texture
 function WaterTiles({ width, height }: { width: number; height: number }) {
   const tiles = useMemo(() => {
     const result: [number, number][] = [];
     // Create water in center area
-    for (let x = -2; x <= 2; x++) {
-      for (let z = -2; z <= 2; z++) {
-        if (Math.sqrt(x * x + z * z) < 2.5) {
+    for (let x = -3; x <= 3; x++) {
+      for (let z = -3; z <= 3; z++) {
+        if (Math.sqrt(x * x + z * z) < 3) {
           result.push([x, z]);
         }
       }
     }
     return result;
   }, []);
+
+  const materialRef = useRef<THREE.MeshStandardMaterial>(null);
+
+  useFrame((state) => {
+    if (materialRef.current) {
+      materialRef.current.opacity = 0.6 + Math.sin(state.clock.elapsedTime) * 0.1;
+    }
+  });
 
   return (
     <group>
@@ -214,6 +386,7 @@ function WaterTiles({ width, height }: { width: number; height: number }) {
         >
           <planeGeometry args={[1, 1]} />
           <meshStandardMaterial
+            ref={materialRef}
             color="#3b82f6"
             transparent
             opacity={0.7}
@@ -224,64 +397,30 @@ function WaterTiles({ width, height }: { width: number; height: number }) {
   );
 }
 
-// Trees
-function Trees({ width, height }: { width: number; height: number }) {
-  const trees = useMemo(() => {
+// Path tiles
+function PathTiles() {
+  const tiles = useMemo(() => {
     const result: [number, number][] = [];
-    for (let i = 0; i < 15; i++) {
-      const x = (Math.random() - 0.5) * (width - 2);
-      const z = (Math.random() - 0.5) * (height - 2);
-      // Avoid center area
-      if (Math.sqrt(x * x + z * z) > 4) {
-        result.push([x, z]);
-      }
+    // Create paths
+    for (let x = -5; x <= 5; x++) {
+      result.push([x, 0]);
+    }
+    for (let z = -5; z <= 5; z++) {
+      result.push([0, z]);
     }
     return result;
-  }, [width, height]);
+  }, []);
 
   return (
     <group>
-      {trees.map(([x, z], index) => (
-        <group key={index} position={[x, 0, z]}>
-          {/* Tree trunk */}
-          <mesh position={[0, 0.5, 0]}>
-            <cylinderGeometry args={[0.1, 0.15, 1, 8]} />
-            <meshStandardMaterial color="#5d4037" />
-          </mesh>
-          {/* Tree leaves */}
-          <mesh position={[0, 1.3, 0]}>
-            <coneGeometry args={[0.5, 1, 8]} />
-            <meshStandardMaterial color="#228b22" />
-          </mesh>
-          <mesh position={[0, 1.7, 0]}>
-            <coneGeometry args={[0.4, 0.8, 8]} />
-            <meshStandardMaterial color="#2e8b2e" />
-          </mesh>
-        </group>
-      ))}
-    </group>
-  );
-}
-
-// Rocks
-function Rocks({ width, height }: { width: number; height: number }) {
-  const rocks = useMemo(() => {
-    const result: [number, number, number][] = [];
-    for (let i = 0; i < 10; i++) {
-      const x = (Math.random() - 0.5) * (width - 2);
-      const z = (Math.random() - 0.5) * (height - 2);
-      const scale = Math.random() * 0.3 + 0.2;
-      result.push([x, scale / 2, z]);
-    }
-    return result;
-  }, [width, height]);
-
-  return (
-    <group>
-      {rocks.map(([x, y, z], index) => (
-        <mesh key={index} position={[x, y, z]}>
-          <dodecahedronGeometry args={[y, 0]} />
-          <meshStandardMaterial color="#6b7280" />
+      {tiles.map(([x, z], index) => (
+        <mesh
+          key={index}
+          position={[x, 0.01, z]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <planeGeometry args={[0.8, 0.8]} />
+          <meshStandardMaterial color="#8b7355" />
         </mesh>
       ))}
     </group>
@@ -295,7 +434,7 @@ function CameraController() {
       minPolarAngle={0.3}
       maxPolarAngle={Math.PI / 2.2}
       minDistance={5}
-      maxDistance={30}
+      maxDistance={35}
       target={[0, 0, 0]}
     />
   );
@@ -308,6 +447,39 @@ export function WorldScene({
   resources,
   onCitizenClick,
 }: WorldSceneProps) {
+  // Generate positions for trees, buildings, and animals
+  const worldObjects = useMemo(() => {
+    const trees: [number, number][] = [];
+    const buildings: [number, number][] = [];
+    const animals: [number, number][] = [];
+
+    // Trees around the edges
+    for (let i = 0; i < 20; i++) {
+      const angle = (i / 20) * Math.PI * 2;
+      const radius = 8 + Math.random() * 2;
+      const x = Math.cos(angle) * radius;
+      const z = Math.sin(angle) * radius;
+      trees.push([x, z]);
+    }
+
+    // Buildings in corners
+    buildings.push([-7, -7]);
+    buildings.push([7, -7]);
+    buildings.push([-7, 7]);
+    buildings.push([7, 7]);
+
+    // Animals scattered
+    for (let i = 0; i < 5; i++) {
+      const x = (Math.random() - 0.5) * 12;
+      const z = (Math.random() - 0.5) * 12;
+      if (Math.sqrt(x * x + z * z) > 4) {
+        animals.push([x, z]);
+      }
+    }
+
+    return { trees, buildings, animals };
+  }, []);
+
   return (
     <Canvas
       camera={{ position: [12, 10, 12], fov: 45 }}
@@ -323,20 +495,45 @@ export function WorldScene({
         shadow-mapSize={[2048, 2048]}
       />
       <pointLight position={[-5, 5, -5]} intensity={0.3} color="#ffd93d" />
+      <pointLight position={[5, 5, 5]} intensity={0.2} color="#87ceeb" />
 
       {/* Sky color */}
       <color attach="background" args={['#1a1a2e']} />
-      <fog attach="fog" args={['#1a1a2e', 20, 50]} />
+      <fog attach="fog" args={['#1a1a2e', 25, 55]} />
 
       <CameraController />
 
       {/* Ground */}
       <Ground width={width} height={height} />
       <WaterTiles width={width} height={height} />
+      <PathTiles />
 
-      {/* Environment */}
-      <Trees width={width} height={height} />
-      <Rocks width={width} height={height} />
+      {/* Trees */}
+      {worldObjects.trees.map(([x, z], index) => (
+        <TreeSprite
+          key={`tree-${index}`}
+          sprite={TREE_SPRITES[index % TREE_SPRITES.length]}
+          position={[x, 0, z]}
+        />
+      ))}
+
+      {/* Buildings */}
+      {worldObjects.buildings.map(([x, z], index) => (
+        <BuildingSprite
+          key={`building-${index}`}
+          sprite={BUILDING_SPRITES[index % BUILDING_SPRITES.length]}
+          position={[x, 0, z]}
+        />
+      ))}
+
+      {/* Animals */}
+      {worldObjects.animals.map(([x, z], index) => (
+        <AnimalSpriteComponent
+          key={`animal-${index}`}
+          animal={ANIMAL_SPRITES[index % ANIMAL_SPRITES.length]}
+          position={[x, 0, z]}
+        />
+      ))}
 
       {/* Grid */}
       <Grid
@@ -346,7 +543,7 @@ export function WorldScene({
         cellThickness={0.5}
         cellColor="#ffffff"
         sectionSize={5}
-        fadeDistance={30}
+        fadeDistance={35}
         fadeStrength={1}
         infiniteGrid={false}
       />

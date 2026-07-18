@@ -8,9 +8,6 @@ const nextConfig = {
     '@eden/history',
     '@eden/db',
   ],
-  experimental: {
-    externalPackages: [],
-  },
 };
 
 module.exports = nextConfig;

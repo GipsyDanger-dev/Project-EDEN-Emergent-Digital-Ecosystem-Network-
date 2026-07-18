@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { WorldScene, CitizenPanel, TimeDisplay } from '../components';
+import { WorldScene, CitizenPanel, TimeDisplay, KnowledgeGraph } from '../components';
 import { soundEngine, initSound } from '../utils/sound-engine';
 import {
   createObsidianBrain,
@@ -346,6 +346,7 @@ export default function Home() {
   const [tick, setTick] = useState(0);
   const [selectedCitizenThoughts, setSelectedCitizenThoughts] = useState<string[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showKnowledgeGraph, setShowKnowledgeGraph] = useState<string | null>(null);
 
   // Initialize sound on first interaction
   const handleFirstInteraction = useCallback(() => {
@@ -627,6 +628,27 @@ export default function Home() {
         <p>Click citizen to view thoughts</p>
         <p>Drag to rotate • Scroll to zoom</p>
       </div>
+
+      {/* Knowledge Graph Button */}
+      {selectedCitizen && selectedCitizenData?.brain && (
+        <button
+          onClick={() => setShowKnowledgeGraph(selectedCitizen)}
+          className="absolute left-4 top-4 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white text-sm font-medium flex items-center gap-2 shadow-lg"
+        >
+          <span>🧠</span>
+          View Knowledge Graph
+        </button>
+      )}
+
+      {/* Knowledge Graph Modal */}
+      {showKnowledgeGraph && (
+        <KnowledgeGraph
+          brain={citizens.find(c => c.id === showKnowledgeGraph)?.brain || null}
+          citizenName={citizens.find(c => c.id === showKnowledgeGraph)?.name || ''}
+          citizenColor={citizens.find(c => c.id === showKnowledgeGraph)?.color || '#6b7280'}
+          onClose={() => setShowKnowledgeGraph(null)}
+        />
+      )}
     </main>
   );
 }

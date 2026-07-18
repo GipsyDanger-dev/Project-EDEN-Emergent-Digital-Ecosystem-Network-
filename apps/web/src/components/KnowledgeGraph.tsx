@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { ObsidianBrain, Memory, getGraphStats } from '@eden/ai';
+import { ObsidianBrain, Memory, getGraphStats, VaultMemory } from '@eden/ai';
+import { downloadVault } from '../utils/download-vault';
 
 interface KnowledgeGraphProps {
   brain: ObsidianBrain | null;
@@ -204,14 +205,42 @@ export function KnowledgeGraph({ brain, citizenName, citizenColor, onClose }: Kn
                 </p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-white p-2 hover:bg-gray-700/50 rounded-lg"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  // Convert ObsidianBrain memories to VaultMemory format
+                  const vaultMemories: VaultMemory[] = Array.from(brain.memories.values()).map(m => ({
+                    id: m.id,
+                    title: m.title,
+                    type: m.type as VaultMemory['type'],
+                    content: m.content,
+                    tags: m.tags,
+                    links: m.links,
+                    connections: m.links,
+                    importance: m.importance,
+                    emotionalWeight: m.emotionalWeight,
+                    tick: m.tick,
+                    timestamp: m.timestamp,
+                  }));
+                  downloadVault(citizenName, vaultMemories);
+                }}
+                className="text-gray-400 hover:text-cyan-400 p-2 hover:bg-gray-700/50 rounded-lg flex items-center gap-1"
+                title="Download Obsidian Vault"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span className="text-xs">Export</span>
+              </button>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-white p-2 hover:bg-gray-700/50 rounded-lg"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 

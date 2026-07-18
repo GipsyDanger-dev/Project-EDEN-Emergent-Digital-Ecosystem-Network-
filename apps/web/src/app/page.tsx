@@ -8,6 +8,7 @@ import {
   addMemory,
   ObsidianBrain,
   Memory,
+  getGraphStats,
 } from '@eden/ai';
 import {
   createAdvancedBrain,
@@ -16,8 +17,6 @@ import {
   BrainDecision,
   getPersonalityDescription,
 } from '../utils/advanced-brain';
-  getGraphStats,
-} from '@eden/ai';
 
 interface CitizenState {
   id: string;

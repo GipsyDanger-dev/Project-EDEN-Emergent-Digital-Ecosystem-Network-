@@ -29,6 +29,10 @@ interface CitizenData {
   };
   thought?: string;
   explanation?: string;
+  emotionalResponse?: string;
+  personalityInfluence?: string;
+  confidence?: number;
+  personalityDescription?: string;
 }
 
 function NeedBar({ label, value, icon }: { label: string; value: number; icon: string }) {
@@ -95,7 +99,6 @@ function EmotionIndicator({ label, value, color }: { label: string; value: numbe
 }
 
 export function CitizenPanel({ citizen, thoughts, onClose }: CitizenPanelProps) {
-  // Play sound when citizen is selected
   useEffect(() => {
     if (citizen) {
       initSound();
@@ -109,6 +112,8 @@ export function CitizenPanel({ citizen, thoughts, onClose }: CitizenPanelProps) 
     switch (action) {
       case 'find_food':
       case 'search_food':
+      case 'search_food_systematic':
+      case 'explore_food':
         return 'text-orange-400 bg-orange-400/10';
       case 'find_rest':
         return 'text-blue-400 bg-blue-400/10';
@@ -117,6 +122,10 @@ export function CitizenPanel({ citizen, thoughts, onClose }: CitizenPanelProps) 
         return 'text-purple-400 bg-purple-400/10';
       case 'explore':
         return 'text-cyan-400 bg-cyan-400/10';
+      case 'find_shelter':
+        return 'text-red-400 bg-red-400/10';
+      case 'observe_citizen':
+        return 'text-yellow-400 bg-yellow-400/10';
       default:
         return 'text-gray-400 bg-gray-400/10';
     }
@@ -127,6 +136,10 @@ export function CitizenPanel({ citizen, thoughts, onClose }: CitizenPanelProps) 
       case 'find_food':
       case 'search_food':
         return 'Searching for food';
+      case 'search_food_systematic':
+        return 'Systematically searching for food';
+      case 'explore_food':
+        return 'Exploring new food sources';
       case 'find_rest':
         return 'Looking for rest';
       case 'approach_citizen':
@@ -139,8 +152,34 @@ export function CitizenPanel({ citizen, thoughts, onClose }: CitizenPanelProps) 
         return 'Finding companion';
       case 'find_shelter':
         return 'Finding shelter';
+      case 'observe_citizen':
+        return 'Observing citizen';
+      case 'wander':
+        return 'Wandering';
       default:
         return 'Idle';
+    }
+  };
+
+  const getEmotionColor = (emotion?: string) => {
+    switch (emotion) {
+      case 'happy':
+      case 'content':
+      case 'social':
+        return '#22c55e';
+      case 'anxious':
+      case 'fearful':
+      case 'cautious':
+        return '#ef4444';
+      case 'lonely':
+      case 'tired':
+      case 'exhausted':
+        return '#3b82f6';
+      case 'curious':
+      case 'focused':
+        return '#f59e0b';
+      default:
+        return '#6b7280';
     }
   };
 
@@ -189,10 +228,17 @@ export function CitizenPanel({ citizen, thoughts, onClose }: CitizenPanelProps) 
             </div>
           </div>
         )}
+
+        {/* Personality */}
+        {citizen.personalityDescription && (
+          <div className="mt-2 text-xs text-gray-500">
+            {citizen.personalityDescription}
+          </div>
+        )}
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-5">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Thought Bubble */}
         {citizen.thought && (
           <div className="relative">
@@ -209,18 +255,49 @@ export function CitizenPanel({ citizen, thoughts, onClose }: CitizenPanelProps) 
           </div>
         )}
 
-        {/* Decision Explanation */}
-        {citizen.explanation && (
-          <div className="bg-gradient-to-br from-purple-900/30 to-purple-900/10 rounded-xl p-4 border border-purple-500/20">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">💬</span>
-              <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">Decision</span>
-            </div>
-            <p className="text-sm text-gray-300 leading-relaxed">
+        {/* Decision Analysis */}
+        <div className="bg-gradient-to-br from-purple-900/30 to-purple-900/10 rounded-xl p-4 border border-purple-500/20">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">💬</span>
+            <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">Decision Analysis</span>
+          </div>
+
+          {citizen.explanation && (
+            <p className="text-sm text-gray-300 leading-relaxed mb-3">
               {citizen.explanation}
             </p>
+          )}
+
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            {citizen.emotionalResponse && (
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: getEmotionColor(citizen.emotionalResponse) }}
+                />
+                <span className="text-gray-400">Emotion:</span>
+                <span className="text-white capitalize">{citizen.emotionalResponse}</span>
+              </div>
+            )}
+
+            {citizen.confidence !== undefined && (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-cyan-500" />
+                <span className="text-gray-400">Confidence:</span>
+                <span className="text-white">{Math.round(citizen.confidence * 100)}%</span>
+              </div>
+            )}
           </div>
-        )}
+
+          {citizen.personalityInfluence && (
+            <div className="mt-3 pt-3 border-t border-purple-500/20">
+              <div className="flex items-start gap-2">
+                <span className="text-xs text-gray-400">Personality:</span>
+                <span className="text-xs text-gray-300">{citizen.personalityInfluence}</span>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Needs */}
         <div>
@@ -259,7 +336,7 @@ export function CitizenPanel({ citizen, thoughts, onClose }: CitizenPanelProps) 
               </svg>
               Thought History
             </h3>
-            <div className="space-y-2 max-h-32 overflow-y-auto">
+            <div className="space-y-2 max-h-40 overflow-y-auto">
               {thoughts.map((thought, index) => (
                 <div
                   key={index}

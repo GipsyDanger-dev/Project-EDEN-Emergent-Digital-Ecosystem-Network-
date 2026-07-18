@@ -8,6 +8,14 @@ import {
   addMemory,
   ObsidianBrain,
   Memory,
+} from '@eden/ai';
+import {
+  createAdvancedBrain,
+  thinkAdvanced,
+  AdvancedBrainState,
+  BrainDecision,
+  getPersonalityDescription,
+} from '../utils/advanced-brain';
   getGraphStats,
 } from '@eden/ai';
 
@@ -33,9 +41,14 @@ interface CitizenState {
   thought?: string;
   action?: string;
   explanation?: string;
+  emotionalResponse?: string;
+  personalityInfluence?: string;
+  confidence?: number;
   lastDecision?: string;
   history: string[];
   brain?: ObsidianBrain;
+  advancedBrain?: AdvancedBrainState;
+  personalityDescription?: string;
 }
 
 const INITIAL_CITIZENS: CitizenState[] = [
@@ -411,18 +424,68 @@ export default function Home() {
           // Update needs
           let updatedCitizen = simulateNeedsUpdate(citizen);
 
-          // Simulate brain every 3 ticks
+          // Initialize advanced brain if not exists
+          let advancedBrain = citizen.advancedBrain || createAdvancedBrain();
           let thought = citizen.thought;
           let action = citizen.action || 'idle';
           let explanation = citizen.explanation;
           let brain = citizen.brain;
+          let emotionalResponse = citizen.emotionalResponse;
+          let personalityInfluence = citizen.personalityInfluence;
+          let confidence = citizen.confidence;
 
-          if (tick % 3 === 0) {
-            const brainResult = simulateBrain(updatedCitizen, tick, prev);
-            thought = brainResult.thought;
-            action = brainResult.action;
-            explanation = brainResult.explanation;
-            brain = brainResult.brain;
+          // Simulate brain every 2 ticks
+          if (tick % 2 === 0) {
+            // Build environment for advanced brain
+            const nearbyCitizens = prev
+              .filter(c => c.id !== citizen.id)
+              .map(c => ({
+                id: c.id,
+                name: c.name,
+                distance: Math.sqrt(
+                  Math.pow(c.position[0] - citizen.position[0], 2) +
+                  Math.pow(c.position[2] - citizen.position[2], 2)
+                ),
+                action: c.action || 'idle',
+              }))
+              .filter(c => c.distance < 10)
+              .sort((a, b) => a.distance - b.distance);
+
+            const nearbyResources = MOCK_RESOURCES
+              .map(r => ({
+                type: r.type,
+                amount: r.amount,
+                distance: Math.sqrt(
+                  Math.pow(r.position[0] - citizen.position[0], 2) +
+                  Math.pow(r.position[2] - citizen.position[2], 2)
+                ),
+              }))
+              .filter(r => r.distance < 10);
+
+            // Use advanced brain
+            const brainResult = thinkAdvanced(
+              advancedBrain,
+              updatedCitizen.needs,
+              {
+                nearbyCitizens,
+                nearbyResources,
+                timeOfDay: getTimeOfDayName(time.timeOfDay),
+                season: time.season,
+              },
+              tick
+            );
+
+            thought = brainResult.decision.thought;
+            action = brainResult.decision.action;
+            explanation = brainResult.decision.explanation;
+            emotionalResponse = brainResult.decision.emotionalResponse;
+            personalityInfluence = brainResult.decision.personalityInfluence;
+            confidence = brainResult.decision.confidence;
+            advancedBrain = brainResult.updatedBrain;
+
+            // Also update obsidian brain
+            const brainResult2 = simulateBrain(updatedCitizen, tick, prev);
+            brain = brainResult2.brain;
 
             // Play sound based on action
             if (soundEnabled && action !== citizen.action) {
@@ -433,6 +496,8 @@ export default function Home() {
                   break;
                 case 'find_food':
                 case 'search_food':
+                case 'search_food_systematic':
+                case 'explore_food':
                   soundEngine.playEat();
                   break;
                 case 'find_rest':
@@ -441,6 +506,9 @@ export default function Home() {
                 case 'explore':
                   soundEngine.playCitizenMove();
                   break;
+                case 'find_shelter':
+                  soundEngine.playAlert();
+                  break;
               }
             }
 
@@ -448,7 +516,7 @@ export default function Home() {
             const history = [...citizen.history];
             if (thought) {
               history.unshift(`[${tick}] ${thought}`);
-              if (history.length > 10) history.pop();
+              if (history.length > 15) history.pop();
             }
 
             updatedCitizen = {
@@ -456,8 +524,13 @@ export default function Home() {
               thought,
               action,
               explanation,
+              emotionalResponse,
+              personalityInfluence,
+              confidence,
               history,
               brain,
+              advancedBrain,
+              personalityDescription: getPersonalityDescription(advancedBrain.personality),
             };
           }
 

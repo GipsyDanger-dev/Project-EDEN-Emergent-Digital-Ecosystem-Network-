@@ -245,7 +245,7 @@ export function generateAutoMemories(
 
 export function seedInitialMemories(
   brain: ObsidianBrain,
-  numMemories: number = 50
+  numMemories: number = 200
 ): ObsidianBrain {
   let currentBrain = brain;
 

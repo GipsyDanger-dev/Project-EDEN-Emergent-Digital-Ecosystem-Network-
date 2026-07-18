@@ -93,25 +93,27 @@ export function NeuralNetwork({
     const centerX = 350;
     const centerY = 280;
 
-    // Initialize nodes with physics
+    // Initialize nodes with spiral layout for density
     memories.forEach((memory, i) => {
       const existing = nodeMap.get(memory.id);
       if (existing) {
-        // Keep existing position, just update memory
         existing.memory = memory;
         return;
       }
 
-      const angle = (i / memories.length) * Math.PI * 2;
-      const radius = Math.min(180, 60 + memories.length * 4);
+      // Spiral layout for organic look
+      const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+      const angle = i * goldenAngle;
+      const radius = Math.sqrt(i) * 8;
+
       nodeMap.set(memory.id, {
         id: memory.id,
-        x: centerX + Math.cos(angle) * radius + (Math.random() - 0.5) * 20,
-        y: centerY + Math.sin(angle) * radius + (Math.random() - 0.5) * 20,
+        x: centerX + Math.cos(angle) * radius + (Math.random() - 0.5) * 10,
+        y: centerY + Math.sin(angle) * radius + (Math.random() - 0.5) * 10,
         vx: 0,
         vy: 0,
         memory,
-        isNew: Date.now() - memory.timestamp < 5000,  // New if created in last 5 seconds
+        isNew: Date.now() - memory.timestamp < 5000,
         pulsePhase: Math.random() * Math.PI * 2,
       });
     });
@@ -119,14 +121,18 @@ export function NeuralNetwork({
     // Physics simulation
     const nodes = Array.from(nodeMap.values());
 
-    for (let iter = 0; iter < 30; iter++) {
-      // Repulsion
+    // Fewer iterations for performance with many nodes
+    const iterations = nodes.length > 100 ? 15 : 30;
+
+    for (let iter = 0; iter < iterations; iter++) {
+      // Repulsion (skip some pairs for performance)
+      const skip = nodes.length > 150 ? 3 : 1;
       for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
+        for (let j = i + skip; j < nodes.length; j += skip) {
           const dx = nodes[j].x - nodes[i].x;
           const dy = nodes[j].y - nodes[i].y;
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const force = 800 / (dist * dist);
+          const force = 500 / (dist * dist);
 
           const fx = (dx / dist) * force;
           const fy = (dy / dist) * force;
@@ -139,7 +145,7 @@ export function NeuralNetwork({
       }
 
       // Attraction along edges
-      for (const edge of graphEdges) {
+      for (const edge of graphEdges.slice(0, 500)) {
         const from = nodeMap.get(edge.from);
         const to = nodeMap.get(edge.to);
         if (!from || !to) continue;
@@ -147,7 +153,7 @@ export function NeuralNetwork({
         const dx = to.x - from.x;
         const dy = to.y - from.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const force = (dist - 60) * 0.008;
+        const force = (dist - 40) * 0.01;
 
         from.vx += (dx / dist) * force;
         from.vy += (dy / dist) * force;
@@ -157,12 +163,12 @@ export function NeuralNetwork({
 
       // Center gravity + apply velocity
       for (const node of nodes) {
-        node.vx += (centerX - node.x) * 0.005;
-        node.vy += (centerY - node.y) * 0.005;
+        node.vx += (centerX - node.x) * 0.008;
+        node.vy += (centerY - node.y) * 0.008;
 
         // Damping
-        node.vx *= 0.85;
-        node.vy *= 0.85;
+        node.vx *= 0.8;
+        node.vy *= 0.8;
 
         // Apply velocity
         node.x += node.vx;
@@ -365,9 +371,11 @@ export function NeuralNetwork({
               const color = TYPE_COLORS[node.memory.type] || '#6b7280';
               const isHovered = hoveredNode === node.id;
               const isSelected = selectedNode?.id === node.id;
-              const size = 14 + node.memory.importance * 12;
-              const pulse = Math.sin((animationFrame + node.pulsePhase * 100) * 0.03) * 0.15 + 1;
-              const breathe = isThinking ? Math.sin(animationFrame * 0.1 + node.pulsePhase) * 2 : 0;
+              // Smaller nodes when many
+              const baseSize = nodes.length > 100 ? 6 : nodes.length > 50 ? 8 : 14;
+              const size = baseSize + node.memory.importance * 4;
+              const pulse = Math.sin((animationFrame + node.pulsePhase * 100) * 0.03) * 0.1 + 1;
+              const breathe = isThinking ? Math.sin(animationFrame * 0.1 + node.pulsePhase) * 1 : 0;
 
               return (
                 <g key={node.id} transform={`translate(${node.x}, ${node.y})`}

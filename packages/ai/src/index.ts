@@ -8,3 +8,4 @@ export * from './memory';
 export * from './brain';
 export * from './llm';
 export * from './local-brain';
+export * from './obsidian-brain';

@@ -1,8 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { WorldScene, CitizenPanel, TimeDisplay } from '../components';
 import { soundEngine, initSound } from '../utils/sound-engine';
+import {
+  createObsidianBrain,
+  addMemory,
+  ObsidianBrain,
+  Memory,
+  getGraphStats,
+} from '@eden/ai';
 
 interface CitizenState {
   id: string;
@@ -28,6 +35,7 @@ interface CitizenState {
   explanation?: string;
   lastDecision?: string;
   history: string[];
+  brain?: ObsidianBrain;
 }
 
 const INITIAL_CITIZENS: CitizenState[] = [
@@ -85,12 +93,20 @@ const MOCK_RESOURCES = [
   { id: 'r5', type: 'food', position: [7, 0.2, -5] as [number, number, number], amount: 90 },
 ];
 
-// Advanced local brain simulation
-function simulateBrain(citizen: CitizenState, tick: number, allCitizens: CitizenState[]): {
+// Advanced local brain simulation with Obsidian brain integration
+function simulateBrain(
+  citizen: CitizenState,
+  tick: number,
+  allCitizens: CitizenState[]
+): {
   thought: string;
   action: string;
   explanation: string;
+  brain: ObsidianBrain;
 } {
+  // Initialize brain if not exists
+  let brain = citizen.brain || createObsidianBrain(citizen.id);
+
   const needs = citizen.needs;
   const mostUrgent = Object.entries(needs)
     .sort(([, a], [, b]) => a - b)[0];
@@ -134,6 +150,19 @@ function simulateBrain(citizen: CitizenState, tick: number, allCitizens: Citizen
     thought = thoughts[needName];
     action = actions[needName];
     explanation = `Critical ${needName} detected (${Math.round(needValue)}%). Taking immediate action: ${action}.`;
+
+    // Create memory of critical state
+    brain = addMemory(brain, {
+      type: 'emotion',
+      title: `Critical ${needName}`,
+      content: `Experience critical ${needName} at ${Math.round(needValue)}%. This was painful and I must avoid this in the future.`,
+      tags: [needName, 'critical', 'survival'],
+      links: [],
+      importance: 0.9,
+      emotionalWeight: -0.8,
+      tick,
+      source: 'need_monitor',
+    });
   } else if (needValue < 50) {
     // Moderate need - consider context
     if (nearbyCitizens.length > 0 && needName === 'social') {
@@ -141,6 +170,19 @@ function simulateBrain(citizen: CitizenState, tick: number, allCitizens: Citizen
       thought = `I see ${target.name} nearby (${target.distance.toFixed(1)}m away). Maybe I should talk to them.`;
       action = 'approach_citizen';
       explanation = `Social need at ${Math.round(needValue)}%. ${target.name} is nearby. Initiating social contact.`;
+
+      // Create memory of seeing citizen
+      brain = addMemory(brain, {
+        type: 'relationship',
+        title: `Saw ${target.name}`,
+        content: `Spotted ${target.name} at distance ${target.distance.toFixed(1)}m. They seem to be ${target.action || 'idle'}.`,
+        tags: [target.name, 'social', 'observation'],
+        links: [],
+        importance: 0.5,
+        emotionalWeight: 0.3,
+        tick,
+        source: 'perception',
+      });
     } else if (needName === 'hunger') {
       thought = `Getting hungry. Hunger at ${Math.round(needValue)}%. I should look for food sources.`;
       action = 'search_food';
@@ -172,10 +214,23 @@ function simulateBrain(citizen: CitizenState, tick: number, allCitizens: Citizen
       thought = exploreThoughts[tick % exploreThoughts.length];
       action = 'explore';
       explanation = `All needs satisfied. Engaging in exploration.`;
+
+      // Create exploration memory
+      brain = addMemory(brain, {
+        type: 'experience',
+        title: 'Exploration',
+        content: `Explored the area while feeling content. Weather was nice.`,
+        tags: ['exploration', 'positive', 'environment'],
+        links: [],
+        importance: 0.3,
+        emotionalWeight: 0.4,
+        tick,
+        source: 'exploration',
+      });
     }
   }
 
-  return { thought, action, explanation };
+  return { thought, action, explanation, brain };
 }
 
 function simulateNeedsUpdate(citizen: CitizenState): CitizenState {
@@ -359,12 +414,14 @@ export default function Home() {
           let thought = citizen.thought;
           let action = citizen.action || 'idle';
           let explanation = citizen.explanation;
+          let brain = citizen.brain;
 
           if (tick % 3 === 0) {
-            const brain = simulateBrain(updatedCitizen, tick, prev);
-            thought = brain.thought;
-            action = brain.action;
-            explanation = brain.explanation;
+            const brainResult = simulateBrain(updatedCitizen, tick, prev);
+            thought = brainResult.thought;
+            action = brainResult.action;
+            explanation = brainResult.explanation;
+            brain = brainResult.brain;
 
             // Play sound based on action
             if (soundEnabled && action !== citizen.action) {
@@ -399,6 +456,7 @@ export default function Home() {
               action,
               explanation,
               history,
+              brain,
             };
           }
 
@@ -503,6 +561,21 @@ export default function Home() {
             <span className="text-white">
               {Math.round(citizens.reduce((sum, c) => sum + c.emotions.happiness, 0) / citizens.length)}
             </span>
+          </div>
+        </div>
+
+        <div className="mt-3 pt-3 border-t border-gray-700">
+          <h3 className="text-xs font-mono text-cyan-400 uppercase tracking-wider mb-2">🧠 Knowledge Graph</h3>
+          <div className="space-y-1 text-xs">
+            {citizens.map(c => {
+              const memCount = c.brain?.memories.size || 0;
+              return (
+                <div key={c.id} className="flex justify-between">
+                  <span style={{ color: c.color }}>{c.name}</span>
+                  <span className="text-gray-400">{memCount} memories</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

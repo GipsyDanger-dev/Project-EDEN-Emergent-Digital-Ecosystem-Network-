@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { soundEngine, initSound } from '../utils/sound-engine';
 
 interface CitizenPanelProps {
   citizen: CitizenData | null;
@@ -94,6 +95,14 @@ function EmotionIndicator({ label, value, color }: { label: string; value: numbe
 }
 
 export function CitizenPanel({ citizen, thoughts, onClose }: CitizenPanelProps) {
+  // Play sound when citizen is selected
+  useEffect(() => {
+    if (citizen) {
+      initSound();
+      soundEngine.playSelect();
+    }
+  }, [citizen?.id]);
+
   if (!citizen) return null;
 
   const getStatusColor = (action?: string) => {
@@ -135,6 +144,11 @@ export function CitizenPanel({ citizen, thoughts, onClose }: CitizenPanelProps) 
     }
   };
 
+  const handleClose = () => {
+    soundEngine.playDeselect();
+    onClose?.();
+  };
+
   return (
     <div className="absolute top-4 right-4 w-96 bg-gray-900/98 backdrop-blur-sm rounded-xl shadow-2xl border border-gray-800/50 text-white max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col">
       {/* Header */}
@@ -157,7 +171,7 @@ export function CitizenPanel({ citizen, thoughts, onClose }: CitizenPanelProps) 
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-white transition-colors p-1 hover:bg-gray-700/50 rounded"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

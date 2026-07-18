@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { WorldScene, CitizenPanel, TimeDisplay } from '../components';
+import { soundEngine, initSound } from '../utils/sound-engine';
 
 interface CitizenState {
   id: string;
@@ -289,6 +290,27 @@ export default function Home() {
   const [isRunning, setIsRunning] = useState(true);
   const [tick, setTick] = useState(0);
   const [selectedCitizenThoughts, setSelectedCitizenThoughts] = useState<string[]>([]);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+
+  // Initialize sound on first interaction
+  const handleFirstInteraction = useCallback(() => {
+    initSound();
+    document.removeEventListener('click', handleFirstInteraction);
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('click', handleFirstInteraction);
+    return () => document.removeEventListener('click', handleFirstInteraction);
+  }, [handleFirstInteraction]);
+
+  // Play sound when citizen is selected
+  const handleCitizenSelect = useCallback((citizenId: string) => {
+    if (soundEnabled) {
+      initSound();
+      soundEngine.playSelect();
+    }
+    setSelectedCitizen(citizenId);
+  }, [soundEnabled]);
 
   // Simulation loop
   useEffect(() => {
@@ -344,6 +366,26 @@ export default function Home() {
             action = brain.action;
             explanation = brain.explanation;
 
+            // Play sound based on action
+            if (soundEnabled && action !== citizen.action) {
+              switch (action) {
+                case 'socialize':
+                case 'approach_citizen':
+                  soundEngine.playCitizenTalk();
+                  break;
+                case 'find_food':
+                case 'search_food':
+                  soundEngine.playEat();
+                  break;
+                case 'find_rest':
+                  soundEngine.playSleep();
+                  break;
+                case 'explore':
+                  soundEngine.playCitizenMove();
+                  break;
+              }
+            }
+
             // Update history
             const history = [...citizen.history];
             if (thought) {
@@ -398,7 +440,7 @@ export default function Home() {
         height={20}
         citizens={citizens}
         resources={MOCK_RESOURCES}
-        onCitizenClick={setSelectedCitizen}
+        onCitizenClick={handleCitizenSelect}
       />
 
       {/* Time Display - Top Left */}
@@ -477,6 +519,22 @@ export default function Home() {
             }`}
           >
             {isRunning ? 'Pause' : 'Resume'}
+          </button>
+          <button
+            onClick={() => {
+              initSound();
+              setSoundEnabled(!soundEnabled);
+              if (!soundEnabled) {
+                soundEngine.playSuccess();
+              }
+            }}
+            className={`px-3 py-1.5 rounded text-xs font-medium ${
+              soundEnabled
+                ? 'bg-blue-600 hover:bg-blue-700'
+                : 'bg-gray-600 hover:bg-gray-500'
+            }`}
+          >
+            {soundEnabled ? '🔊' : '🔇'}
           </button>
           <button
             onClick={() => {

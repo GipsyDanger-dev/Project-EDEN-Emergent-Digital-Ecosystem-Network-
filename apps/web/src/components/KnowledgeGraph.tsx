@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { ObsidianBrain, Memory, getGraphStats, VaultMemory } from '@eden/ai';
-import { downloadVault } from '../utils/download-vault';
+import { ObsidianBrain, Memory, getGraphStats } from '@eden/ai';
+import { CitizenMemory, downloadObsidianVault } from '../utils/obsidian-export';
 
 interface KnowledgeGraphProps {
   brain: ObsidianBrain | null;
@@ -16,12 +16,6 @@ interface GraphNode {
   x: number;
   y: number;
   memory: Memory;
-}
-
-interface GraphEdge {
-  from: string;
-  to: string;
-  strength: number;
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -42,6 +36,21 @@ const TYPE_LABELS: Record<string, string> = {
   location: 'LOC',
 };
 
+function convertToCitizenMemory(memory: Memory): CitizenMemory {
+  return {
+    id: memory.id,
+    title: memory.title,
+    type: memory.type as CitizenMemory['type'],
+    content: memory.content,
+    tags: memory.tags,
+    linkedMemories: memory.links,
+    importance: memory.importance,
+    emotionalWeight: memory.emotionalWeight,
+    tick: memory.tick,
+    timestamp: memory.timestamp,
+  };
+}
+
 export function KnowledgeGraph({ brain, citizenName, citizenColor, onClose }: KnowledgeGraphProps) {
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
@@ -51,7 +60,6 @@ export function KnowledgeGraph({ brain, citizenName, citizenColor, onClose }: Kn
   const isDragging = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
 
-  // Generate node positions using force-directed layout
   const { nodes, edges } = useMemo(() => {
     if (!brain) return { nodes: [], edges: [] };
 
@@ -60,12 +68,10 @@ export function KnowledgeGraph({ brain, citizenName, citizenColor, onClose }: Kn
 
     if (memories.length === 0) return { nodes: [], edges: [] };
 
-    // Simple force-directed layout
     const nodeMap = new Map<string, GraphNode>();
     const centerX = 300;
     const centerY = 250;
 
-    // Initial positions in a circle
     memories.forEach((memory, i) => {
       const angle = (i / memories.length) * Math.PI * 2;
       const radius = Math.min(150, 50 + memories.length * 5);
@@ -77,11 +83,10 @@ export function KnowledgeGraph({ brain, citizenName, citizenColor, onClose }: Kn
       });
     });
 
-    // Run force simulation
+    // Force simulation
     for (let iter = 0; iter < 50; iter++) {
       const nodes = Array.from(nodeMap.values());
 
-      // Repulsion between nodes
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const dx = nodes[j].x - nodes[i].x;
@@ -89,17 +94,13 @@ export function KnowledgeGraph({ brain, citizenName, citizenColor, onClose }: Kn
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
           const force = 1000 / (dist * dist);
 
-          const fx = (dx / dist) * force;
-          const fy = (dy / dist) * force;
-
-          nodes[i].x -= fx;
-          nodes[i].y -= fy;
-          nodes[j].x += fx;
-          nodes[j].y += fy;
+          nodes[i].x -= (dx / dist) * force;
+          nodes[i].y -= (dy / dist) * force;
+          nodes[j].x += (dx / dist) * force;
+          nodes[j].y += (dy / dist) * force;
         }
       }
 
-      // Attraction along edges
       for (const edge of graphEdges) {
         const from = nodeMap.get(edge.from);
         const to = nodeMap.get(edge.to);
@@ -110,35 +111,26 @@ export function KnowledgeGraph({ brain, citizenName, citizenColor, onClose }: Kn
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
         const force = (dist - 80) * 0.01;
 
-        const fx = (dx / dist) * force;
-        const fy = (dy / dist) * force;
-
-        from.x += fx;
-        from.y += fy;
-        to.x -= fx;
-        to.y -= fy;
+        from.x += (dx / dist) * force;
+        from.y += (dy / dist) * force;
+        to.x -= (dx / dist) * force;
+        to.y -= (dy / dist) * force;
       }
 
-      // Center gravity
       for (const node of nodes) {
         node.x += (centerX - node.x) * 0.01;
         node.y += (centerY - node.y) * 0.01;
-
-        // Keep in bounds
         node.x = Math.max(30, Math.min(570, node.x));
         node.y = Math.max(30, Math.min(470, node.y));
       }
     }
 
-    const finalNodes = Array.from(nodeMap.values());
-    const validEdges = graphEdges.filter(
-      e => nodeMap.has(e.from) && nodeMap.has(e.to)
-    );
-
-    return { nodes: finalNodes, edges: validEdges };
+    return {
+      nodes: Array.from(nodeMap.values()),
+      edges: graphEdges.filter(e => nodeMap.has(e.from) && nodeMap.has(e.to)),
+    };
   }, [brain]);
 
-  // Handle mouse events for panning
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.target === svgRef.current) {
       isDragging.current = true;
@@ -148,9 +140,10 @@ export function KnowledgeGraph({ brain, citizenName, citizenColor, onClose }: Kn
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isDragging.current) {
-      const dx = e.clientX - lastMouse.current.x;
-      const dy = e.clientY - lastMouse.current.y;
-      setOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+      setOffset(prev => ({
+        x: prev.x + (e.clientX - lastMouse.current.x),
+        y: prev.y + (e.clientY - lastMouse.current.y),
+      }));
       lastMouse.current = { x: e.clientX, y: e.clientY };
     }
   };
@@ -161,21 +154,23 @@ export function KnowledgeGraph({ brain, citizenName, citizenColor, onClose }: Kn
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setZoom(prev => Math.max(0.3, Math.min(3, prev * delta)));
+    setZoom(prev => Math.max(0.3, Math.min(3, prev * (e.deltaY > 0 ? 0.9 : 1.1))));
+  };
+
+  const handleExport = () => {
+    if (!brain) return;
+    const memories = Array.from(brain.memories.values()).map(convertToCitizenMemory);
+    downloadObsidianVault(citizenName, memories);
   };
 
   if (!brain) {
     return (
-      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 bg-gray-900/98 rounded-xl shadow-2xl border border-gray-800/50 p-6 text-white">
-        <div className="text-center">
+      <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
+        <div className="w-96 bg-gray-900 rounded-xl shadow-2xl p-6 text-white text-center">
           <div className="text-4xl mb-4">🧠</div>
           <h2 className="text-lg font-bold mb-2">No Brain Data</h2>
-          <p className="text-gray-400 text-sm">This citizen hasn't formed any memories yet.</p>
-          <button
-            onClick={onClose}
-            className="mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm"
-          >
+          <p className="text-gray-400 text-sm mb-4">This citizen hasn't formed any memories yet.</p>
+          <button onClick={onClose} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
             Close
           </button>
         </div>
@@ -187,55 +182,29 @@ export function KnowledgeGraph({ brain, citizenName, citizenColor, onClose }: Kn
 
   return (
     <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="relative w-[700px] h-[600px] bg-gray-900/98 rounded-xl shadow-2xl border border-gray-800/50 overflow-hidden">
+      <div className="relative w-[700px] h-[600px] bg-gray-900 rounded-xl shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-gray-900 to-transparent z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold"
-                style={{ backgroundColor: citizenColor + '30', color: citizenColor }}
-              >
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold"
+                style={{ backgroundColor: citizenColor + '30', color: citizenColor }}>
                 {citizenName[0]}
               </div>
               <div>
-                <h2 className="text-lg font-bold text-white">{citizenName}&apos;s Knowledge Graph</h2>
-                <p className="text-xs text-gray-400">
-                  {stats.totalMemories} memories • {stats.totalEdges} connections
-                </p>
+                <h2 className="text-lg font-bold text-white">{citizenName}'s Knowledge Graph</h2>
+                <p className="text-xs text-gray-400">{stats.totalMemories} memories • {stats.totalEdges} connections</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  // Convert ObsidianBrain memories to VaultMemory format
-                  const vaultMemories: VaultMemory[] = Array.from(brain.memories.values()).map(m => ({
-                    id: m.id,
-                    title: m.title,
-                    type: m.type as VaultMemory['type'],
-                    content: m.content,
-                    tags: m.tags,
-                    links: m.links,
-                    connections: m.links,
-                    importance: m.importance,
-                    emotionalWeight: m.emotionalWeight,
-                    tick: m.tick,
-                    timestamp: m.timestamp,
-                  }));
-                  downloadVault(citizenName, vaultMemories);
-                }}
-                className="text-gray-400 hover:text-cyan-400 p-2 hover:bg-gray-700/50 rounded-lg flex items-center gap-1"
-                title="Download Obsidian Vault"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <button onClick={handleExport}
+                className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white text-xs font-medium flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                <span className="text-xs">Export</span>
+                Export for Obsidian
               </button>
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-white p-2 hover:bg-gray-700/50 rounded-lg"
-              >
+              <button onClick={onClose} className="text-gray-400 hover:text-white p-2 hover:bg-gray-700/50 rounded-lg">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -245,110 +214,46 @@ export function KnowledgeGraph({ brain, citizenName, citizenColor, onClose }: Kn
         </div>
 
         {/* Graph */}
-        <svg
-          ref={svgRef}
-          className="w-full h-full cursor-grab active:cursor-grabbing"
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          onWheel={handleWheel}
-        >
+        <svg ref={svgRef} className="w-full h-full cursor-grab active:cursor-grabbing"
+          onMouseDown={handleMouseDown} onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} onWheel={handleWheel}>
           <defs>
             <filter id="glow">
               <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-              <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
+              <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
             </filter>
-            <radialGradient id="nodeGradient">
-              <stop offset="0%" stopColor="white" stopOpacity="0.3"/>
-              <stop offset="100%" stopColor="white" stopOpacity="0"/>
-            </radialGradient>
           </defs>
-
           <g transform={`translate(${offset.x}, ${offset.y}) scale(${zoom})`}>
-            {/* Edges */}
             {edges.map((edge, i) => {
-              const fromNode = nodes.find(n => n.id === edge.from);
-              const toNode = nodes.find(n => n.id === edge.to);
-              if (!fromNode || !toNode) return null;
-
-              const isHighlighted = hoveredNode === edge.from || hoveredNode === edge.to;
-
+              const from = nodes.find(n => n.id === edge.from);
+              const to = nodes.find(n => n.id === edge.to);
+              if (!from || !to) return null;
+              const highlighted = hoveredNode === edge.from || hoveredNode === edge.to;
               return (
-                <line
-                  key={i}
-                  x1={fromNode.x}
-                  y1={fromNode.y}
-                  x2={toNode.x}
-                  y2={toNode.y}
-                  stroke={isHighlighted ? '#60a5fa' : '#374151'}
-                  strokeWidth={isHighlighted ? 2 : 1}
-                  strokeOpacity={isHighlighted ? 0.8 : 0.3}
-                />
+                <line key={i} x1={from.x} y1={from.y} x2={to.x} y2={to.y}
+                  stroke={highlighted ? '#60a5fa' : '#374151'}
+                  strokeWidth={highlighted ? 2 : 1} strokeOpacity={highlighted ? 0.8 : 0.3} />
               );
             })}
-
-            {/* Nodes */}
             {nodes.map((node) => {
               const color = TYPE_COLORS[node.memory.type] || '#6b7280';
               const isHovered = hoveredNode === node.id;
               const isSelected = selectedNode?.id === node.id;
               const size = 12 + node.memory.importance * 10;
-
               return (
-                <g
-                  key={node.id}
-                  transform={`translate(${node.x}, ${node.y})`}
+                <g key={node.id} transform={`translate(${node.x}, ${node.y})`}
                   onMouseEnter={() => setHoveredNode(node.id)}
                   onMouseLeave={() => setHoveredNode(null)}
                   onClick={() => setSelectedNode(isSelected ? null : node)}
-                  className="cursor-pointer"
-                >
-                  {/* Glow effect */}
-                  {isHovered && (
-                    <circle
-                      r={size + 8}
-                      fill={color}
-                      opacity={0.3}
-                      filter="url(#glow)"
-                    />
-                  )}
-
-                  {/* Main circle */}
-                  <circle
-                    r={size}
-                    fill={color}
-                    stroke={isSelected ? 'white' : 'transparent'}
-                    strokeWidth={2}
-                    opacity={0.9}
-                  />
-
-                  {/* Inner highlight */}
-                  <circle r={size * 0.6} fill="url(#nodeGradient)" />
-
-                  {/* Type label */}
-                  <text
-                    textAnchor="middle"
-                    dy="0.35em"
-                    fill="white"
-                    fontSize={8}
-                    fontWeight="bold"
-                  >
+                  className="cursor-pointer">
+                  {isHovered && <circle r={size + 8} fill={color} opacity={0.3} filter="url(#glow)" />}
+                  <circle r={size} fill={color} stroke={isSelected ? 'white' : 'transparent'} strokeWidth={2} opacity={0.9} />
+                  <circle r={size * 0.6} fill="rgba(255,255,255,0.2)" />
+                  <text textAnchor="middle" dy="0.35em" fill="white" fontSize={8} fontWeight="bold">
                     {TYPE_LABELS[node.memory.type]}
                   </text>
-
-                  {/* Title on hover */}
                   {isHovered && (
-                    <text
-                      textAnchor="middle"
-                      dy={size + 14}
-                      fill="white"
-                      fontSize={10}
-                      className="pointer-events-none"
-                    >
+                    <text textAnchor="middle" dy={size + 14} fill="white" fontSize={10} className="pointer-events-none">
                       {node.memory.title.slice(0, 20)}
                     </text>
                   )}
@@ -373,7 +278,7 @@ export function KnowledgeGraph({ brain, citizenName, citizenColor, onClose }: Kn
 
         {/* Stats */}
         <div className="absolute bottom-4 right-4 bg-gray-800/90 rounded-lg p-3 text-xs">
-          <div className="text-gray-400 mb-2 font-medium">Graph Stats</div>
+          <div className="text-gray-400 mb-2 font-medium">Stats</div>
           <div className="space-y-1">
             <div className="flex justify-between gap-4">
               <span className="text-gray-400">Density:</span>
@@ -391,26 +296,15 @@ export function KnowledgeGraph({ brain, citizenName, citizenColor, onClose }: Kn
           <div className="absolute top-20 right-4 w-64 bg-gray-800/95 rounded-lg shadow-xl p-4 text-white text-sm">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <div
-                  className="text-xs font-medium px-2 py-0.5 rounded mb-1"
-                  style={{ backgroundColor: TYPE_COLORS[selectedNode.memory.type] + '30', color: TYPE_COLORS[selectedNode.memory.type] }}
-                >
+                <div className="text-xs font-medium px-2 py-0.5 rounded mb-1"
+                  style={{ backgroundColor: TYPE_COLORS[selectedNode.memory.type] + '30', color: TYPE_COLORS[selectedNode.memory.type] }}>
                   {selectedNode.memory.type.toUpperCase()}
                 </div>
                 <h3 className="font-bold">{selectedNode.memory.title}</h3>
               </div>
-              <button
-                onClick={() => setSelectedNode(null)}
-                className="text-gray-400 hover:text-white"
-              >
-                ×
-              </button>
+              <button onClick={() => setSelectedNode(null)} className="text-gray-400 hover:text-white">×</button>
             </div>
-
-            <p className="text-gray-300 text-xs mb-3 leading-relaxed">
-              {selectedNode.memory.content}
-            </p>
-
+            <p className="text-gray-300 text-xs mb-3 leading-relaxed">{selectedNode.memory.content}</p>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-gray-400">Importance</span>
@@ -422,29 +316,15 @@ export function KnowledgeGraph({ brain, citizenName, citizenColor, onClose }: Kn
                   {selectedNode.memory.emotionalWeight >= 0 ? '+' : ''}{(selectedNode.memory.emotionalWeight * 100).toFixed(0)}%
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">Tick</span>
-                <span className="text-white">{selectedNode.memory.tick}</span>
-              </div>
             </div>
-
             {selectedNode.memory.tags.length > 0 && (
               <div className="mt-3">
                 <div className="text-gray-400 mb-1">Tags</div>
                 <div className="flex flex-wrap gap-1">
                   {selectedNode.memory.tags.map(tag => (
-                    <span key={tag} className="px-2 py-0.5 bg-gray-700 rounded text-gray-300">
-                      #{tag}
-                    </span>
+                    <span key={tag} className="px-2 py-0.5 bg-gray-700 rounded text-gray-300">#{tag}</span>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {selectedNode.memory.links.length > 0 && (
-              <div className="mt-3">
-                <div className="text-gray-400 mb-1">Connections</div>
-                <div className="text-white">{selectedNode.memory.links.length} linked memories</div>
               </div>
             )}
           </div>
@@ -454,6 +334,7 @@ export function KnowledgeGraph({ brain, citizenName, citizenColor, onClose }: Kn
         <div className="absolute top-20 left-4 text-xs text-gray-500 space-y-1">
           <p>Click node to see details</p>
           <p>Drag to pan • Scroll to zoom</p>
+          <p className="text-cyan-400">Export to open in Obsidian!</p>
         </div>
       </div>
     </div>

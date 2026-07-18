@@ -10,6 +10,16 @@ import {
   Memory,
   getGraphStats,
 } from '@eden/ai';
+
+function getTimeOfDayName(timeOfDay: number): string {
+  if (timeOfDay < 600) return 'night';
+  if (timeOfDay < 900) return 'morning';
+  if (timeOfDay < 1200) return 'midday';
+  if (timeOfDay < 1500) return 'afternoon';
+  if (timeOfDay < 1800) return 'evening';
+  if (timeOfDay < 2100) return 'night';
+  return 'night';
+}
 import {
   createAdvancedBrain,
   thinkAdvanced,

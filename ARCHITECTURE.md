@@ -6,6 +6,30 @@
 
 ## 1. System Overview
 
+### Implemented runtime (current)
+
+EDEN uses one authoritative simulation process. The browser is an observer and never advances citizens locally.
+
+```text
+Next.js observer UI
+  ├─ GET /api/snapshot
+  ├─ POST /api/simulation/pause|resume
+  └─ WebSocket /ws (snapshot stream + reconnect)
+                    │
+                    ▼
+Fastify SimulationService
+  ├─ deterministic clock and seeded PRNG
+  ├─ one canonical CitizenBrain per citizen
+  ├─ explainable decisions, needs, movement, emotions, memories
+  └─ serialized runtime snapshots
+                    │
+                    ▼
+PostgreSQL JSONB store when DATABASE_URL exists
+or in-memory store for local development and tests
+```
+
+Runtime contracts live in `@eden/core`, brain ownership in `@eden/ai`, and deterministic tick execution in `@eden/engine`. The older diagram below describes the longer-term target; Redis, Neo4j, Qdrant, BullMQ, Socket.IO, and an API gateway are not current runtime dependencies.
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        Browser                              │

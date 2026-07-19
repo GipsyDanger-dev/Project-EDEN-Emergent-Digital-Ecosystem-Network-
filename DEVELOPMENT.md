@@ -1,5 +1,39 @@
 1. Development Workflow ⭐⭐⭐⭐⭐
 
+## Local authoritative runtime
+
+Requirements: Node.js 20+ and pnpm 8.15.
+
+```bash
+pnpm install
+pnpm build
+pnpm --filter @eden/server start
+pnpm --filter @eden/web start
+```
+
+The server listens on `http://localhost:3000`. Run the web app on another port when both production apps run locally, for example `pnpm --filter @eden/web start -- -p 3100`. Copy `.env.example` to `.env` only when overriding defaults or enabling PostgreSQL persistence.
+
+Repository quality gate:
+
+```bash
+pnpm run ci
+```
+
+This runs lint, TypeScript project-reference checking, tests, and production builds. Pull requests and pushes to `main` run the same gate in GitHub Actions.
+
+## Sprint 5 baseline
+
+- Server owns the only simulation clock and random stream.
+- Every citizen owns an isolated canonical brain and memory stream.
+- Runtime state can serialize, persist, restore, and continue deterministically.
+- The frontend consumes REST/WebSocket snapshots and automatically reconnects.
+- UI controls request pause/resume from the server; they do not mutate world state locally.
+
+## Visual assets
+
+Internet-sourced assets must be stored locally, have a production-safe license, and include provenance in `apps/web/public/assets/ATTRIBUTION.md`. The current citizen sprites come from the CC0 Puny Characters pack.
+
+
 Flow wajib.
 
 Issue
@@ -601,10 +635,22 @@ Hotfix lebih diprioritaskan daripada fitur baru jika stabilitas proyek terganggu
 | Local Brain | ✅ | Decision making without LLM |
 | Thought Display | ✅ | Show citizen thoughts in UI |
 
+### Sprint 4 — Baseline Engineering & Visual Foundation ✅
+
+| Task | Status | Detail |
+|------|--------|--------|
+| TypeScript Foundation | ✅ | Valid project references, composite builds, server configuration |
+| Dependency Hygiene | ✅ | Workspace dependencies and scripts aligned with actual imports |
+| Quality Gate | ✅ | Root lint, test, build, and CI commands |
+| Continuous Integration | ✅ | GitHub Actions with frozen pnpm install and quality gate |
+| Database Adapters | ✅ | Typed PostgreSQL, Redis, Neo4j, and Qdrant client factories |
+| Visual Foundation | ✅ | EDEN observatory design system, production dashboard, refined 3D world |
+
 ---
 
 ## Changelog
 
 | Date | Version | Change |
 |------|---------|--------|
+| 2026-07-19 | 0.1.0 | Sprint 4 baseline engineering and visual foundation completed |
 | 2026-07-17 | 0.1.0 | Sprint 0, 1, 2, & 3 completed |

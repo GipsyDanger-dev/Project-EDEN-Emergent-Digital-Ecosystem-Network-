@@ -7,9 +7,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "lint": "eslint src/",
+    "lint": "eslint src --ext .ts --max-warnings 0",
     "test": "vitest",
-    "clean": "rm -rf dist"
+    "clean": "tsc --build --clean"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

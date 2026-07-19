@@ -1,4 +1,5 @@
-import { Citizen, Location } from '@eden/core';
+import type { Location } from '@eden/core';
+import type { Citizen } from '@eden/citizen';
 import { WorldMap, createWorldMap, getRandomWalkablePosition, isWalkable } from './map';
 import { Resource, createResource, ResourceType, updateResources, findNearestResource, harvestResource } from './resources';
 import { TimeSystem, createTimeSystem, advanceTime } from '../time';
@@ -35,7 +36,6 @@ export function createWorld(
 
 function generateInitialResources(map: WorldMap): Resource[] {
   const resources: Resource[] = [];
-  const resourceTypes: ResourceType[] = ['food', 'water', 'wood', 'stone'];
 
   // Generate resources in appropriate terrain
   for (let y = 0; y < map.height; y++) {

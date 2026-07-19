@@ -1,8 +1,9 @@
-import { Citizen, Decision, Event } from '@eden/core';
+import type { Decision, Event } from '@eden/core';
+import type { Citizen } from '@eden/citizen';
 import { Perception } from './perception';
 import { AttentionFocus } from './attention';
 import { Plan, getCurrentStep } from './planning';
-import { MemorySystem, addMemory } from './memory';
+import { MemorySystem } from './memory';
 
 export interface DecisionContext {
   citizen: Citizen;
@@ -17,7 +18,7 @@ export function makeDecision(context: DecisionContext): {
   decision: Decision;
   events: Event[];
 } {
-  const { citizen, perception, attention, plan, memory, tick } = context;
+  const { citizen, perception, attention, plan, tick } = context;
   const currentStep = getCurrentStep(plan);
 
   if (!currentStep) {
@@ -97,6 +98,7 @@ function generateOptions(
 
   switch (intendedAction) {
     case 'find_food':
+    {
       const foodSources = perception.visibleEntities.filter(
         e => e.type === 'resource' && e.details.type === 'food'
       );
@@ -114,6 +116,7 @@ function generateOptions(
         });
       }
       break;
+    }
 
     case 'eat':
       options.push({
@@ -123,6 +126,7 @@ function generateOptions(
       break;
 
     case 'find_citizen':
+    {
       const citizens = perception.visibleEntities.filter(e => e.type === 'citizen');
       citizens.forEach(c => {
         options.push({
@@ -132,6 +136,7 @@ function generateOptions(
         });
       });
       break;
+    }
 
     case 'socialize':
       options.push({
@@ -204,7 +209,7 @@ function createIdleDecision(citizen: Citizen, tick: number): {
 
 export function executeDecision(
   citizen: Citizen,
-  decision: Decision
+  _decision: Decision
 ): Citizen {
   // This will be expanded with actual action execution
   return citizen;

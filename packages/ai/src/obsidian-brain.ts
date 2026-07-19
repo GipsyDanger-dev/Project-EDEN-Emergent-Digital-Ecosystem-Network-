@@ -3,7 +3,6 @@
  * Uses markdown files with wiki-links as knowledge graph
  */
 
-import { Citizen } from '@eden/core';
 
 export interface Memory {
   id: string;
@@ -422,7 +421,7 @@ export function exportToMarkdown(brain: ObsidianBrain): string {
   lines.push('');
 
   // Export memories as markdown files
-  for (const [id, memory] of brain.memories) {
+  for (const memory of brain.memories.values()) {
     lines.push(`## ${memory.title}`);
     lines.push('');
     lines.push(`**Type:** ${memory.type}`);

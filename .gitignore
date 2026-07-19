@@ -6,6 +6,7 @@ node_modules/
 dist/
 .next/
 out/
+*.tsbuildinfo
 
 # Environment
 .env
@@ -31,6 +32,7 @@ npm-debug.log*
 
 # Turbo
 .turbo/
+.codex-tmp/
 
 # Docker
 docker/data/

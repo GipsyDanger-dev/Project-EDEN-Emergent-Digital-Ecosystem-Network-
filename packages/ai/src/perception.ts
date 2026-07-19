@@ -1,4 +1,5 @@
-import { Citizen, Location } from '@eden/core';
+import type { Location } from '@eden/core';
+import type { Citizen } from '@eden/citizen';
 
 export interface Perception {
   citizenId: string;

@@ -1,4 +1,4 @@
-import { Citizen, Needs, Event } from '@eden/core';
+import type { Citizen } from '@eden/citizen';
 import { MemorySystem, recallRecentMemory } from './memory';
 import { LLMConfig, LLMMessage, callLLM } from './llm';
 
@@ -81,7 +81,7 @@ export async function think(
   const response = await callLLM(config.llm, messages);
 
   // Parse response
-  const output = parseBrainResponse(response.content, citizen);
+  const output = parseBrainResponse(response.content);
 
   return output;
 }
@@ -172,7 +172,7 @@ Think about your needs, what's around you, and what you've experienced before.
 Respond in the specified JSON format.`;
 }
 
-function parseBrainResponse(response: string, citizen: Citizen): BrainOutput {
+function parseBrainResponse(response: string): BrainOutput {
   try {
     // Try to parse JSON response
     const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -189,7 +189,7 @@ function parseBrainResponse(response: string, citizen: Citizen): BrainOutput {
         memories: [],
       };
     }
-  } catch (e) {
+  } catch {
     // If JSON parsing fails, use the response as-is
   }
 

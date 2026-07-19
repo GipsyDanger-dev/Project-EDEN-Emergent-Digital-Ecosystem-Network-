@@ -7,11 +7,12 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "lint": "eslint src/",
+    "lint": "eslint src --ext .ts --max-warnings 0",
     "test": "vitest",
-    "clean": "rm -rf dist"
+    "clean": "tsc --build --clean"
   },
   "dependencies": {
+    "@eden/citizen": "workspace:*",
     "@eden/core": "workspace:*"
   },
   "devDependencies": {

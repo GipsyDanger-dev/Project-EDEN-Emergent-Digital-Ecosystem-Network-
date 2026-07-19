@@ -4,7 +4,6 @@ import {
   addMemory,
   retrieveMemory,
   recallRecentMemory,
-  recallImportantMemory,
   decayMemories,
 } from './memory';
 import { Event } from '@eden/core';

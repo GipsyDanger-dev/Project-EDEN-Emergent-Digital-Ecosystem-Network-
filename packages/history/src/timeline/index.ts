@@ -1,4 +1,4 @@
-import { HistoryEvent, filterEvents, sortEventsByTick } from '../events';
+import { HistoryEvent, filterEvents } from '../events';
 
 export interface Timeline {
   id: string;

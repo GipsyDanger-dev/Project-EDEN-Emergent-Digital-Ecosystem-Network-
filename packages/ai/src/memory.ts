@@ -31,10 +31,11 @@ export function createMemorySystem(citizenId: string): MemorySystem {
 export function addMemory(
   system: MemorySystem,
   event: Event,
-  importance: number
+  importance: number,
+  createId: () => string = () => crypto.randomUUID()
 ): MemorySystem {
   const memory: Memory = {
-    id: crypto.randomUUID(),
+    id: createId(),
     citizenId: system.citizenId,
     type: classifyMemoryType(event),
     content: formatMemoryContent(event),

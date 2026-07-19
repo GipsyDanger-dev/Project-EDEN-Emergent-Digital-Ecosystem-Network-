@@ -1,13 +1,12 @@
-import { Citizen } from '@eden/core';
-import { BrainInput, BrainOutput, PerceptionInput } from './brain';
-import { MemorySystem, recallRecentMemory } from './memory';
+import { BrainInput, BrainOutput } from './brain';
+import { recallRecentMemory } from './memory';
 
 /**
  * Local brain - decision making without LLM
  * Used when no API key is available
  */
 export function thinkLocal(input: BrainInput): BrainOutput {
-  const { citizen, perception, memories, currentGoal } = input;
+  const { citizen, perception, memories } = input;
 
   // Analyze state
   const needs = citizen.state.needs;
@@ -18,10 +17,6 @@ export function thinkLocal(input: BrainInput): BrainOutput {
 
   // Recall relevant memories
   const recentMemories = recallRecentMemory(memories, 3);
-  const memoryHint = recentMemories.length > 0
-    ? recentMemories[recentMemories.length - 1].content
-    : '';
-
   // Generate thought based on state
   let thought = '';
   let action = 'idle';

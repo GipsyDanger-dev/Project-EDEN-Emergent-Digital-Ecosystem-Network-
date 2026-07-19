@@ -1,4 +1,4 @@
-import { Citizen, Decision } from '@eden/core';
+import type { Citizen } from '@eden/citizen';
 import { AttentionFocus } from './attention';
 import { MemorySystem } from './memory';
 
@@ -21,8 +21,8 @@ export interface PlanStep {
 
 export function generatePlan(
   citizen: Citizen,
-  attention: AttentionFocus,
-  memory: MemorySystem
+  _attention: AttentionFocus,
+  _memory: MemorySystem
 ): Plan | null {
   const urgentNeed = getMostUrgentNeed(citizen);
 
@@ -30,7 +30,7 @@ export function generatePlan(
     return createIdlePlan(citizen);
   }
 
-  const steps = planStepsForNeed(urgentNeed, citizen, attention);
+  const steps = planStepsForNeed(urgentNeed);
 
   if (steps.length === 0) {
     return null;
@@ -62,9 +62,7 @@ function getMostUrgentNeed(citizen: Citizen): { name: string; value: number } | 
 }
 
 function planStepsForNeed(
-  need: { name: string; value: number },
-  citizen: Citizen,
-  attention: AttentionFocus
+  need: { name: string; value: number }
 ): PlanStep[] {
   const steps: PlanStep[] = [];
 

@@ -1,15 +1,9 @@
-import { Citizen, Event } from '@eden/core';
-import { createCitizen, updateCitizen } from '@eden/citizen';
-import { createDriveSystem, updateDrives, getMostUrgentNeed } from '@eden/citizen';
+import type { Event } from '@eden/core';
+import { createCitizen, updateCitizen, type Citizen } from '@eden/citizen';
+import { createDriveSystem, updateDrives } from '@eden/citizen';
 import { createGoalSystem, generateGoals, prioritizeGoals, getHighestPriorityGoal } from '@eden/citizen';
-import { createMemorySystem, addMemory, recallRecentMemory } from '@eden/ai';
-import { perceive, Perception } from '@eden/ai';
-import { determineAttention, AttentionFocus } from '@eden/ai';
-import { generatePlan, Plan, advancePlan, getCurrentStep } from '@eden/ai';
-import { makeDecision, Decision } from '@eden/ai';
-import { World, addCitizenToWorld, moveCitizenInWorld, citizenHarvestResource } from './world';
-import { EventBus, emitEvent } from './events';
-import { HistorySystem, recordEvent } from '@eden/history';
+import { createMemorySystem, type Plan, advancePlan, getCurrentStep } from '@eden/ai';
+import { type World, moveCitizenInWorld } from './world';
 
 export interface IntegratedCitizen {
   citizen: Citizen;
@@ -118,6 +112,7 @@ function executePlanStep(
   // Execute the step
   switch (currentStep.action) {
     case 'move':
+    {
       // Simple random movement
       const newX = citizen.location.x + (Math.random() - 0.5) * 2;
       const newY = citizen.location.y + (Math.random() - 0.5) * 2;
@@ -130,6 +125,7 @@ function executePlanStep(
         metadata: { tick, cause: 'plan_execution' },
       });
       break;
+    }
 
     case 'act':
       events.push({

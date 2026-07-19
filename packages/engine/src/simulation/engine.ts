@@ -1,7 +1,7 @@
 import { World, createWorld, addCitizenToWorld } from '../world';
-import { Citizen } from '@eden/core';
+import type { Citizen } from '@eden/citizen';
 import { EventBus, createEventBus } from '../events';
-import { BrainConfig, createBrainConfig } from '@eden/ai';
+import { BrainConfig } from '@eden/ai';
 import { executeTick, TickResult, createTickContext, TickContext } from './tick';
 import { MemorySystem, createMemorySystem } from '@eden/ai';
 
@@ -74,7 +74,7 @@ export function startSimulation(engine: SimulationEngine): SimulationEngine {
   if (engine.isRunning) return engine;
 
   // Create tick context
-  let tickContext = createTickContext(engine.world, engine.brainConfig);
+  const tickContext = createTickContext(engine.world, engine.brainConfig);
   tickContext.citizenMemories = engine.citizenMemories;
 
   const tickRate = engine.world.time.tickRate;

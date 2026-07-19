@@ -218,8 +218,6 @@ export function getGoalProgress(
   currentNeeds: Needs
 ): number {
   const currentValue = currentNeeds[goal.targetNeed];
-  const startValue = 100; // Assume started from full
-
   if (currentValue >= goal.targetValue) {
     return 1;
   }

@@ -10,13 +10,19 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
-    "test": "turbo test",
+    "typecheck": "tsc --build --pretty false",
+    "test": "turbo test -- --run --passWithNoTests",
     "lint": "turbo lint",
-    "clean": "turbo clean",
+    "ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "clean": "turbo clean && tsc --build --clean",
     "db:migrate": "pnpm --filter @eden/db migrate",
     "db:seed": "pnpm --filter @eden/db seed"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.33",
     "turbo": "^2.0.0",
     "typescript": "^5.4.0"
   },

@@ -1,7 +1,8 @@
-import { Citizen, Event } from '@eden/core';
+import type { Event } from '@eden/core';
+import type { Citizen } from '@eden/citizen';
 import { World, updateWorld, findResourceForCitizen } from '../world';
-import { EventBus, emitEvent } from '../events';
-import { think, thinkLocal, BrainConfig, BrainInput, BrainOutput, createBrainConfig } from '@eden/ai';
+import { emitEvent } from '../events';
+import { think, thinkLocal, BrainConfig, BrainInput, BrainOutput } from '@eden/ai';
 import { createMemorySystem, addMemory, MemorySystem } from '@eden/ai';
 import { getTimeOfDayName } from '../time';
 
@@ -223,6 +224,7 @@ async function executeAction(
   switch (update.action) {
     case 'seek_hunger':
     case 'seek_energy':
+    {
       // Try to find food
       const food = findResourceForCitizen(world, citizen, 'food');
       if (food) {
@@ -230,6 +232,7 @@ async function executeAction(
         newLocation = moveTowards(citizen.location, food.location, 2);
       }
       break;
+    }
 
     case 'seek_social':
       // Move towards nearest citizen

@@ -76,7 +76,6 @@ export function getHistoryStats(history: HistorySystem) {
   const timelineStats = getTimelineStats(history.timeline);
 
   return {
-    totalEvents: history.events.length,
     ...timelineStats,
   };
 }

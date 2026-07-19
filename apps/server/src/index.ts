@@ -1,28 +1,21 @@
-import Fastify from 'fastify';
-import cors from '@fastify/cors';
-import websocket from '@fastify/websocket';
+import { buildApp } from './app';
 
-const app = Fastify({ logger: true });
+async function start(): Promise<void> {
+  const app = await buildApp({
+    databaseUrl: process.env.DATABASE_URL,
+    seed: Number(process.env.EDEN_SEED ?? 7331),
+    citizenCount: Number(process.env.EDEN_CITIZENS ?? 4),
+    tickRate: Number(process.env.EDEN_TICK_RATE ?? 1000),
+  });
 
-// Register plugins
-await app.register(cors, { origin: true });
-await app.register(websocket);
-
-// Health check
-app.get('/health', async () => {
-  return { status: 'ok', timestamp: Date.now() };
-});
-
-// Start server
-const start = async () => {
   try {
-    const port = parseInt(process.env.PORT || '3000');
+    const port = Number(process.env.PORT ?? 3000);
     await app.listen({ port, host: '0.0.0.0' });
-    console.log(`Server running on port ${port}`);
-  } catch (err) {
-    app.log.error(err);
+    app.log.info({ port }, 'EDEN simulation server running');
+  } catch (error) {
+    app.log.error(error);
     process.exit(1);
   }
-};
+}
 
-start();
+void start();

@@ -16,7 +16,7 @@ export interface CharacterSprite {
 }
 
 // 16x16 pixel character frames (idle animation)
-const CHARACTER_IDLE: number[][] = [
+const CHARACTER_IDLE: number[][][] = [
   // Frame 1
   [
     [0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0],
@@ -58,7 +58,7 @@ const CHARACTER_IDLE: number[][] = [
 ];
 
 // Walking animation frames
-const CHARACTER_WALK: number[][][] = [
+const _CHARACTER_WALK: number[][][] = [
   // Frame 1 - Left foot forward
   [
     [0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0],
@@ -697,7 +697,7 @@ export const RESOURCE_SPRITES: ResourceSpriteConfig[] = [
 export function createTextureFromPixels(
   pixels: number[][],
   palette: Record<number, string>,
-  size: number = 16
+  _size: number = 16
 ): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = pixels[0].length;

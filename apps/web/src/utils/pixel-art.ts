@@ -79,7 +79,9 @@ const CHARACTER_PATTERN = [
   [0,0,0,0,4,4,4,0,4,4,4,0,0,0,0,0],
 ];
 
-const COLOR_MAP: Record<number, keyof PixelCharacterConfig> = {
+type CharacterColorKey = 'skinColor' | 'hairColor' | 'shirtColor' | 'pantsColor' | 'eyeColor';
+
+const COLOR_MAP: Record<number, CharacterColorKey> = {
   1: 'skinColor',
   2: 'hairColor',
   3: 'shirtColor',

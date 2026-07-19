@@ -1,19 +1,15 @@
 'use client';
 
 import React, { useRef, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls, Grid, Text, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 import {
-  CHARACTER_PALETTES,
-  CharacterPalette,
   BUILDING_SPRITES,
   ANIMAL_SPRITES,
   TREE_SPRITES,
   RESOURCE_SPRITES,
   createTextureFromPixels,
-  createCharacterTexture,
-  getRandomPalette,
 } from '../utils/pixel-art-sprites';
 
 interface WorldSceneProps {
@@ -54,20 +50,33 @@ interface ResourceData {
   amount: number;
 }
 
-// Get character palette based on citizen ID
-function getCharacterPalette(citizen: CitizenData): CharacterPalette {
-  const index = parseInt(citizen.id) % CHARACTER_PALETTES.length;
-  return CHARACTER_PALETTES[index];
-}
+const CHARACTER_ASSETS: Record<string, string> = {
+  'citizen-aria': '/assets/characters/aria-archer.png',
+  'citizen-marcus': '/assets/characters/marcus-soldier.png',
+  'citizen-luna': '/assets/characters/luna-mage.png',
+  'citizen-orion': '/assets/characters/orion-warrior.png',
+};
 
 // Pixel Art Character Sprite with animation
 function PixelCharacter({ citizen, onClick }: { citizen: CitizenData; onClick?: () => void }) {
   const spriteRef = useRef<THREE.Sprite>(null);
-  const palette = getCharacterPalette(citizen);
-
+  const sourceTexture = useLoader(
+    THREE.TextureLoader,
+    CHARACTER_ASSETS[citizen.id] ?? CHARACTER_ASSETS['citizen-aria']
+  );
   const texture = useMemo(() => {
-    return createCharacterTexture(palette);
-  }, [palette]);
+    const nextTexture = sourceTexture.clone();
+    nextTexture.colorSpace = THREE.SRGBColorSpace;
+    nextTexture.magFilter = THREE.NearestFilter;
+    nextTexture.minFilter = THREE.NearestFilter;
+    nextTexture.wrapS = THREE.RepeatWrapping;
+    nextTexture.wrapT = THREE.RepeatWrapping;
+    nextTexture.repeat.set(1 / 24, 1 / 8);
+    const row = [...citizen.id].reduce((total, character) => total + character.charCodeAt(0), 0) % 8;
+    nextTexture.offset.set(0, row / 8);
+    nextTexture.needsUpdate = true;
+    return nextTexture;
+  }, [citizen.id, sourceTexture]);
 
   const material = useMemo(() => {
     return new THREE.SpriteMaterial({
@@ -78,8 +87,10 @@ function PixelCharacter({ citizen, onClick }: { citizen: CitizenData; onClick?: 
 
   useFrame((state) => {
     if (spriteRef.current) {
-      // Gentle bobbing animation
-      spriteRef.current.position.y = 0.8 + Math.sin(state.clock.elapsedTime * 2 + parseInt(citizen.id)) * 0.05;
+      const moving = citizen.action !== 'idle';
+      const frame = moving ? 4 + Math.floor(state.clock.elapsedTime * 7) % 6 : Math.floor(state.clock.elapsedTime * 2) % 2;
+      texture.offset.x = frame / 24;
+      spriteRef.current.position.y = citizen.position[1] + 0.65 + Math.sin(state.clock.elapsedTime * 5) * 0.035;
     }
   });
 
@@ -99,7 +110,7 @@ function PixelCharacter({ citizen, onClick }: { citizen: CitizenData; onClick?: 
       <sprite
         ref={spriteRef}
         position={citizen.position}
-        scale={[1.2, 1.5, 1]}
+        scale={[1.35, 1.35, 1]}
         onClick={(e) => {
           e.stopPropagation();
           onClick?.();
@@ -152,20 +163,20 @@ function getActionEmoji(action: string): string {
   switch (action) {
     case 'find_food':
     case 'search_food':
-      return '🍖';
+      return 'FOOD';
     case 'find_rest':
-      return '💤';
+      return 'REST';
     case 'socialize':
     case 'approach_citizen':
-      return '💬';
+      return 'TALK';
     case 'explore':
-      return '🔍';
+      return 'SCOUT';
     case 'find_companion':
-      return '👥';
+      return 'GROUP';
     case 'find_shelter':
-      return '🏠';
+      return 'HOME';
     default:
-      return '❓';
+      return 'ACT';
   }
 }
 
@@ -304,7 +315,7 @@ function Ground({ width, height }: { width: number; height: number }) {
     const ctx = canvas.getContext('2d')!;
 
     // Base grass color
-    ctx.fillStyle = '#2d5a27';
+    ctx.fillStyle = '#17382d';
     ctx.fillRect(0, 0, 512, 512);
 
     // Add grass texture
@@ -312,7 +323,7 @@ function Ground({ width, height }: { width: number; height: number }) {
       const x = Math.random() * 512;
       const y = Math.random() * 512;
       const shade = Math.random() * 30 - 15;
-      ctx.fillStyle = `rgb(${45 + shade}, ${90 + shade}, ${39 + shade})`;
+      ctx.fillStyle = `rgb(${23 + shade}, ${56 + shade}, ${45 + shade})`;
       ctx.fillRect(x, y, 2, 2);
     }
 
@@ -354,14 +365,14 @@ function Ground({ width, height }: { width: number; height: number }) {
 }
 
 // Water with animated texture
-function WaterTiles({ width, height }: { width: number; height: number }) {
+function WaterTiles() {
   const tiles = useMemo(() => {
     const result: [number, number][] = [];
-    // Create water in center area
-    for (let x = -3; x <= 3; x++) {
-      for (let z = -3; z <= 3; z++) {
-        if (Math.sqrt(x * x + z * z) < 3) {
-          result.push([x, z]);
+    const ponds = [[-12, -9, 4], [14, 11, 5], [0, 0, 3]];
+    for (const [centerX, centerZ, radius] of ponds) {
+      for (let x = -radius; x <= radius; x++) {
+        for (let z = -radius; z <= radius; z++) {
+          if (Math.sqrt(x * x + z * z) < radius) result.push([centerX + x, centerZ + z]);
         }
       }
     }
@@ -387,7 +398,7 @@ function WaterTiles({ width, height }: { width: number; height: number }) {
           <planeGeometry args={[1, 1]} />
           <meshStandardMaterial
             ref={materialRef}
-            color="#3b82f6"
+            color="#206477"
             transparent
             opacity={0.7}
           />
@@ -398,18 +409,17 @@ function WaterTiles({ width, height }: { width: number; height: number }) {
 }
 
 // Path tiles
-function PathTiles() {
+function PathTiles({ width, height }: { width: number; height: number }) {
   const tiles = useMemo(() => {
     const result: [number, number][] = [];
-    // Create paths
-    for (let x = -5; x <= 5; x++) {
+    for (let x = -width / 2 + 3; x <= width / 2 - 3; x++) {
       result.push([x, 0]);
     }
-    for (let z = -5; z <= 5; z++) {
+    for (let z = -height / 2 + 3; z <= height / 2 - 3; z++) {
       result.push([0, z]);
     }
     return result;
-  }, []);
+  }, [height, width]);
 
   return (
     <group>
@@ -420,7 +430,7 @@ function PathTiles() {
           rotation={[-Math.PI / 2, 0, 0]}
         >
           <planeGeometry args={[0.8, 0.8]} />
-          <meshStandardMaterial color="#8b7355" />
+          <meshStandardMaterial color="#5c5544" roughness={0.95} />
         </mesh>
       ))}
     </group>
@@ -434,8 +444,11 @@ function CameraController() {
       minPolarAngle={0.3}
       maxPolarAngle={Math.PI / 2.2}
       minDistance={5}
-      maxDistance={35}
-      target={[0, 0, 0]}
+      maxDistance={82}
+      screenSpacePanning
+      enableDamping
+      dampingFactor={0.06}
+      target={[0, 0, -1]}
     />
   );
 }
@@ -453,28 +466,21 @@ export function WorldScene({
     const buildings: [number, number][] = [];
     const animals: [number, number][] = [];
 
-    // Trees around the edges
-    for (let i = 0; i < 20; i++) {
-      const angle = (i / 20) * Math.PI * 2;
-      const radius = 8 + Math.random() * 2;
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
+    // Deterministic forest belt across the expanded world.
+    for (let i = 0; i < 96; i++) {
+      const angle = (i / 96) * Math.PI * 2;
+      const radius = 18 + ((i * 37) % 13);
+      const x = Math.cos(angle) * radius + ((i * 17) % 5) - 2;
+      const z = Math.sin(angle) * radius + ((i * 29) % 5) - 2;
       trees.push([x, z]);
     }
 
-    // Buildings in corners
-    buildings.push([-7, -7]);
-    buildings.push([7, -7]);
-    buildings.push([-7, 7]);
-    buildings.push([7, 7]);
+    buildings.push([-22, -19], [21, -20], [-23, 18], [22, 20], [-8, 13], [10, -14]);
 
-    // Animals scattered
-    for (let i = 0; i < 5; i++) {
-      const x = (Math.random() - 0.5) * 12;
-      const z = (Math.random() - 0.5) * 12;
-      if (Math.sqrt(x * x + z * z) > 4) {
-        animals.push([x, z]);
-      }
+    for (let i = 0; i < 18; i++) {
+      const x = ((i * 19) % 49) - 24;
+      const z = ((i * 31) % 51) - 25;
+      if (Math.sqrt(x * x + z * z) > 6) animals.push([x, z]);
     }
 
     return { trees, buildings, animals };
@@ -482,31 +488,35 @@ export function WorldScene({
 
   return (
     <Canvas
-      camera={{ position: [12, 10, 12], fov: 45 }}
+      camera={{ position: [28, 25, 30], fov: 45 }}
+      dpr={[1, 1.5]}
+      gl={{ antialias: true, powerPreference: 'high-performance' }}
       style={{ width: '100%', height: '100vh' }}
       shadows
     >
       {/* Lighting */}
-      <ambientLight intensity={0.4} />
+      <ambientLight intensity={0.32} color="#b7d8ca" />
+      <hemisphereLight intensity={0.55} color="#c5eadb" groundColor="#07110e" />
       <directionalLight
-        position={[10, 15, 10]}
-        intensity={1}
+        position={[10, 16, 8]}
+        intensity={1.35}
+        color="#f5d8a4"
         castShadow
         shadow-mapSize={[2048, 2048]}
       />
-      <pointLight position={[-5, 5, -5]} intensity={0.3} color="#ffd93d" />
-      <pointLight position={[5, 5, 5]} intensity={0.2} color="#87ceeb" />
+      <pointLight position={[-6, 4, -5]} intensity={0.45} distance={18} color="#6ee7b7" />
+      <pointLight position={[6, 5, 5]} intensity={0.3} distance={20} color="#f0bd6d" />
 
       {/* Sky color */}
-      <color attach="background" args={['#1a1a2e']} />
-      <fog attach="fog" args={['#1a1a2e', 25, 55]} />
+      <color attach="background" args={['#06110e']} />
+      <fog attach="fog" args={['#06110e', 48, 92]} />
 
       <CameraController />
 
       {/* Ground */}
       <Ground width={width} height={height} />
-      <WaterTiles width={width} height={height} />
-      <PathTiles />
+      <WaterTiles />
+      <PathTiles width={width} height={height} />
 
       {/* Trees */}
       {worldObjects.trees.map(([x, z], index) => (
@@ -541,10 +551,12 @@ export function WorldScene({
         position={[0, 0.01, 0]}
         cellSize={1}
         cellThickness={0.5}
-        cellColor="#ffffff"
+        cellColor="#7dd3ae"
+        sectionColor="#a7f3d0"
         sectionSize={5}
-        fadeDistance={35}
-        fadeStrength={1}
+        sectionThickness={0.8}
+        fadeDistance={68}
+        fadeStrength={2}
         infiniteGrid={false}
       />
 

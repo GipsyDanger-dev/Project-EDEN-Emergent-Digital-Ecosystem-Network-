@@ -1,0 +1,158 @@
+@font-face {
+  font-family: "Pixelify Sans";
+  src: url("/assets/fonts/PixelifySans.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Silkscreen";
+  src: url("/assets/fonts/Silkscreen-Regular.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Silkscreen";
+  src: url("/assets/fonts/Silkscreen-Bold.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --eden-ink: #07110e;
+  --eden-panel: #0c1d18;
+  --eden-line: #3f6f5a;
+  --eden-mint: #86e1a9;
+  --eden-amber: #e3b75d;
+  --eden-shadow: #020705;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  background: var(--eden-ink);
+}
+
+body {
+  color: #eef8f3;
+  font-family: "Pixelify Sans", sans-serif;
+  image-rendering: pixelated;
+  -webkit-font-smoothing: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--eden-mint);
+  outline-offset: 2px;
+}
+
+::selection {
+  color: #05120d;
+  background: var(--eden-mint);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #315846;
+}
+
+@layer components {
+  .eden-panel {
+    border: 2px solid var(--eden-line);
+    border-radius: 0 !important;
+    background-color: rgba(8, 24, 19, 0.94);
+    background-image:
+      linear-gradient(rgba(134, 225, 169, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(134, 225, 169, 0.035) 1px, transparent 1px);
+    background-size: 8px 8px;
+    box-shadow: 5px 5px 0 var(--eden-shadow), inset 0 0 0 1px rgba(190, 255, 215, 0.06);
+    backdrop-filter: none;
+    clip-path: polygon(0 8px, 8px 8px, 8px 0, calc(100% - 8px) 0, calc(100% - 8px) 8px, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px));
+  }
+
+  .eden-label {
+    color: rgba(205, 248, 218, 0.68);
+    font-family: "Silkscreen", monospace;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .eden-button {
+    border: 2px solid #315846;
+    border-radius: 0 !important;
+    background: #10271f;
+    color: rgba(236, 253, 245, 0.8);
+    box-shadow: 3px 3px 0 var(--eden-shadow);
+    font-family: "Silkscreen", monospace;
+    transition: border-color 100ms steps(2), background 100ms steps(2), color 100ms steps(2), transform 100ms steps(2);
+  }
+
+  .eden-button:hover {
+    border-color: rgba(118, 230, 184, 0.42);
+    background: rgba(18, 48, 40, 0.86);
+    color: white;
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 var(--eden-shadow);
+  }
+
+  .eden-button:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 var(--eden-shadow);
+  }
+}
+
+.eden-world-shell::after {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background: repeating-linear-gradient(0deg, transparent 0 3px, rgba(2, 8, 5, 0.08) 3px 4px);
+  mix-blend-mode: multiply;
+}
+
+canvas {
+  image-rendering: pixelated;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

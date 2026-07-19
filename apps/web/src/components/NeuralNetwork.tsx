@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { ObsidianBrain, Memory, getGraphStats } from '@eden/ai';
+import { ObsidianBrain, ObsidianMemory, getGraphStats } from '@eden/ai';
 import { CitizenMemory, downloadObsidianVault } from '../utils/obsidian-export';
 
 interface NeuralNetworkProps {
@@ -19,16 +19,9 @@ interface GraphNode {
   y: number;
   vx: number;
   vy: number;
-  memory: Memory;
+  memory: ObsidianMemory;
   isNew: boolean;
   pulsePhase: number;
-}
-
-interface GraphEdge {
-  from: string;
-  to: string;
-  strength: number;
-  isNew: boolean;
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -56,7 +49,6 @@ export function NeuralNetwork({
   const svgRef = useRef<SVGSVGElement>(null);
   const isDragging = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
-  const prevMemoryCount = useRef(0);
 
   // Animation loop
   useEffect(() => {
@@ -68,17 +60,6 @@ export function NeuralNetwork({
     frame = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frame);
   }, []);
-
-  // Detect new memories
-  const newMemoryDetected = useMemo(() => {
-    if (!brain) return false;
-    const currentCount = brain.memories.size;
-    if (currentCount > prevMemoryCount.current) {
-      prevMemoryCount.current = currentCount;
-      return true;
-    }
-    return false;
-  }, [brain?.memories.size]);
 
   // Force-directed layout with physics
   const { nodes, edges } = useMemo(() => {
@@ -188,7 +169,7 @@ export function NeuralNetwork({
       }));
 
     return { nodes, edges: validEdges };
-  }, [brain, animationFrame]);
+  }, [brain]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.target === svgRef.current) {

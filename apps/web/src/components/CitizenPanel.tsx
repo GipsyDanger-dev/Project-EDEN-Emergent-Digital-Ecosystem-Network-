@@ -12,6 +12,7 @@ interface CitizenPanelProps {
 interface CitizenData {
   id: string;
   name: string;
+  color: string;
   age: number;
   gender: string;
   action?: string;
@@ -99,12 +100,14 @@ function EmotionIndicator({ label, value, color }: { label: string; value: numbe
 }
 
 export function CitizenPanel({ citizen, thoughts, onClose }: CitizenPanelProps) {
+  const citizenId = citizen?.id;
+
   useEffect(() => {
-    if (citizen) {
+    if (citizenId) {
       initSound();
       soundEngine.playSelect();
     }
-  }, [citizen?.id]);
+  }, [citizenId]);
 
   if (!citizen) return null;
 
@@ -189,9 +192,9 @@ export function CitizenPanel({ citizen, thoughts, onClose }: CitizenPanelProps) 
   };
 
   return (
-    <div className="absolute top-4 right-4 w-96 bg-gray-900/98 backdrop-blur-sm rounded-xl shadow-2xl border border-gray-800/50 text-white max-h-[calc(100vh-2rem)] overflow-hidden flex flex-col">
+    <div className="eden-panel absolute right-5 top-24 z-30 flex max-h-[calc(100vh-15rem)] w-[25rem] flex-col overflow-hidden rounded-2xl text-white">
       {/* Header */}
-      <div className="p-4 border-b border-gray-800/50 bg-gradient-to-r from-gray-900 to-gray-800/50">
+      <div className="border-b border-emerald-100/10 bg-gradient-to-r from-emerald-950/40 to-transparent p-4">
         <div className="flex justify-between items-start">
           <div className="flex items-center gap-3">
             <div
@@ -238,7 +241,7 @@ export function CitizenPanel({ citizen, thoughts, onClose }: CitizenPanelProps) 
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 space-y-4 overflow-y-auto p-4">
         {/* Thought Bubble */}
         {citizen.thought && (
           <div className="relative">
@@ -351,7 +354,7 @@ export function CitizenPanel({ citizen, thoughts, onClose }: CitizenPanelProps) 
       </div>
 
       {/* Footer */}
-      <div className="p-3 border-t border-gray-800/50 bg-gray-900/50">
+      <div className="border-t border-emerald-100/10 bg-emerald-950/20 p-3">
         <div className="flex items-center justify-between text-xs text-gray-500">
           <span>ID: {citizen.id.slice(0, 8)}...</span>
           <span className="flex items-center gap-1">

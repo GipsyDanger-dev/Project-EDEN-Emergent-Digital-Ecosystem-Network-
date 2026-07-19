@@ -41,7 +41,7 @@ export interface Skill {
 
 export interface MemoryEntry {
   id: string;
-  type: 'experience' | 'observation' | 'interaction' | 'learning' | 'emotion';
+  type: 'experience' | 'observation' | 'interaction' | 'learning' | 'emotion' | 'decision';
   content: string;
   importance: number;
   emotionalWeight: number;
@@ -60,29 +60,6 @@ export interface BrainDecision {
   emotionalResponse: string;
   personalityInfluence: string;
 }
-
-const PERSONALITY_TRAITS = {
-  openness: {
-    high: ['curious', 'creative', 'adventurous', 'open-minded'],
-    low: ['practical', 'conventional', 'cautious', 'traditional'],
-  },
-  conscientiousness: {
-    high: ['organized', 'responsible', 'planned', 'disciplined'],
-    low: ['flexible', 'spontaneous', 'easygoing', 'careless'],
-  },
-  extraversion: {
-    high: ['outgoing', 'social', 'energetic', 'talkative'],
-    low: ['reserved', 'solitary', 'quiet', 'independent'],
-  },
-  agreeableness: {
-    high: ['cooperative', 'trusting', 'helpful', 'compassionate'],
-    low: ['competitive', 'skeptical', 'challenging', 'suspicious'],
-  },
-  neuroticism: {
-    high: ['sensitive', 'anxious', 'moody', 'volatile'],
-    low: ['calm', 'confident', 'stable', 'resilient'],
-  },
-};
 
 export function createAdvancedBrain(): AdvancedBrainState {
   return {
@@ -149,19 +126,19 @@ export function thinkAdvanced(
   let decision: BrainDecision;
 
   if (needs.hunger < 30) {
-    decision = makeHungerDecision(brain, needs, environment, tick);
+    decision = makeHungerDecision(brain, needs);
   } else if (needs.energy < 25) {
-    decision = makeEnergyDecision(brain, needs, environment, tick);
+    decision = makeEnergyDecision(brain, needs, environment);
   } else if (needs.social < 35) {
-    decision = makeSocialDecision(brain, needs, environment, tick);
+    decision = makeSocialDecision(brain, needs, environment);
   } else if (needs.safety < 40) {
-    decision = makeSafetyDecision(brain, needs, environment, tick);
+    decision = makeSafetyDecision(brain, needs, environment);
   } else if (newCuriosity > 60 && environment.nearbyResources.length > 0) {
-    decision = makeExplorationDecision(brain, needs, environment, tick);
+    decision = makeExplorationDecision(brain, environment);
   } else if (personality.extraversion > 60 && environment.nearbyCitizens.length > 0) {
-    decision = makeSocialInteractionDecision(brain, needs, environment, tick);
+    decision = makeSocialInteractionDecision(brain, environment);
   } else {
-    decision = makeIdleDecision(brain, needs, environment, tick);
+    decision = makeIdleDecision(brain, tick);
   }
 
   // Create memory of this decision
@@ -206,9 +183,7 @@ export function thinkAdvanced(
 
 function makeHungerDecision(
   brain: AdvancedBrainState,
-  needs: { hunger: number; energy: number; social: number; safety: number },
-  environment: { nearbyCitizens: any[]; nearbyResources: any[]; timeOfDay: string; season: string },
-  tick: number
+  needs: { hunger: number; energy: number; social: number; safety: number }
 ): BrainDecision {
   const { personality } = brain;
 
@@ -246,8 +221,7 @@ function makeHungerDecision(
 function makeEnergyDecision(
   brain: AdvancedBrainState,
   needs: { hunger: number; energy: number; social: number; safety: number },
-  environment: { nearbyCitizens: any[]; nearbyResources: any[]; timeOfDay: string; season: string },
-  tick: number
+  environment: { nearbyCitizens: any[]; nearbyResources: any[]; timeOfDay: string; season: string }
 ): BrainDecision {
   const { personality } = brain;
 
@@ -277,8 +251,7 @@ function makeEnergyDecision(
 function makeSocialDecision(
   brain: AdvancedBrainState,
   needs: { hunger: number; energy: number; social: number; safety: number },
-  environment: { nearbyCitizens: any[]; nearbyResources: any[]; timeOfDay: string; season: string },
-  tick: number
+  environment: { nearbyCitizens: any[]; nearbyResources: any[]; timeOfDay: string; season: string }
 ): BrainDecision {
   const { personality } = brain;
 
@@ -328,8 +301,7 @@ function makeSocialDecision(
 function makeSafetyDecision(
   brain: AdvancedBrainState,
   needs: { hunger: number; energy: number; social: number; safety: number },
-  environment: { nearbyCitizens: any[]; nearbyResources: any[]; timeOfDay: string; season: string },
-  tick: number
+  environment: { nearbyCitizens: any[]; nearbyResources: any[]; timeOfDay: string; season: string }
 ): BrainDecision {
   const { personality } = brain;
 
@@ -358,9 +330,7 @@ function makeSafetyDecision(
 
 function makeExplorationDecision(
   brain: AdvancedBrainState,
-  needs: { hunger: number; energy: number; social: number; safety: number },
-  environment: { nearbyCitizens: any[]; nearbyResources: any[]; timeOfDay: string; season: string },
-  tick: number
+  environment: { nearbyCitizens: any[]; nearbyResources: any[]; timeOfDay: string; season: string }
 ): BrainDecision {
   const { personality } = brain;
 
@@ -389,9 +359,7 @@ function makeExplorationDecision(
 
 function makeSocialInteractionDecision(
   brain: AdvancedBrainState,
-  needs: { hunger: number; energy: number; social: number; safety: number },
-  environment: { nearbyCitizens: any[]; nearbyResources: any[]; timeOfDay: string; season: string },
-  tick: number
+  environment: { nearbyCitizens: any[]; nearbyResources: any[]; timeOfDay: string; season: string }
 ): BrainDecision {
   const { personality } = brain;
 
@@ -423,8 +391,6 @@ function makeSocialInteractionDecision(
 
 function makeIdleDecision(
   brain: AdvancedBrainState,
-  needs: { hunger: number; energy: number; social: number; safety: number },
-  environment: { nearbyCitizens: any[]; nearbyResources: any[]; timeOfDay: string; season: string },
   tick: number
 ): BrainDecision {
   const { personality } = brain;
@@ -527,7 +493,7 @@ function updateRelationships(
 }
 
 export function getPersonalityDescription(personality: AdvancedBrainState['personality']): string {
-  const traits = [];
+  const traits: string[] = [];
 
   if (personality.openness > 60) traits.push('curious');
   else if (personality.openness < 40) traits.push('practical');

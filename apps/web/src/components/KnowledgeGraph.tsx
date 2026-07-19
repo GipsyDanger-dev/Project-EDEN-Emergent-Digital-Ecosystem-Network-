@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useMemo, useState, useRef, useEffect } from 'react';
-import { ObsidianBrain, Memory, getGraphStats } from '@eden/ai';
+import React, { useMemo, useState, useRef } from 'react';
+import { ObsidianBrain, ObsidianMemory, getGraphStats } from '@eden/ai';
 import { CitizenMemory, downloadObsidianVault } from '../utils/obsidian-export';
 
 interface KnowledgeGraphProps {
@@ -15,7 +15,7 @@ interface GraphNode {
   id: string;
   x: number;
   y: number;
-  memory: Memory;
+  memory: ObsidianMemory;
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -36,7 +36,7 @@ const TYPE_LABELS: Record<string, string> = {
   location: 'LOC',
 };
 
-function convertToCitizenMemory(memory: Memory): CitizenMemory {
+function convertToCitizenMemory(memory: ObsidianMemory): CitizenMemory {
   return {
     id: memory.id,
     title: memory.title,

@@ -4,7 +4,6 @@
 
 import {
   VaultMemory,
-  createVaultMemory,
   generateMemoryMarkdown,
   generateVaultStructure,
   generateDailyNote,

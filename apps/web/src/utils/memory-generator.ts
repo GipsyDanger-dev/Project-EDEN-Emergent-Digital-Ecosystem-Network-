@@ -2,7 +2,7 @@
  * Memory Generator - Auto-generates memories to create dense neural network
  */
 
-import { ObsidianBrain, Memory } from '@eden/ai';
+import { ObsidianBrain, ObsidianMemory } from '@eden/ai';
 
 // Memory templates for auto-generation
 const MEMORY_TEMPLATES = {
@@ -137,8 +137,6 @@ const TAGS_BY_TYPE: Record<string, string[]> = {
   skill: ['ability', 'practice', 'mastery', 'development', 'growth'],
 };
 
-const LINKABLE_TYPES = ['experience', 'knowledge', 'emotion', 'observation'];
-
 export function generateAutoMemories(
   brain: ObsidianBrain,
   tick: number,
@@ -164,7 +162,7 @@ export function generateAutoMemories(
     // Pick random tags
     const availableTags = TAGS_BY_TYPE[type] || [];
     const numTags = 2 + Math.floor(Math.random() * 3);
-    const tags = [];
+    const tags: string[] = [];
     for (let j = 0; j < numTags; j++) {
       const tag = availableTags[Math.floor(Math.random() * availableTags.length)];
       if (!tags.includes(tag)) tags.push(tag);
@@ -185,16 +183,18 @@ export function generateAutoMemories(
     }
 
     // Create memory
-    const memory: Memory = {
+    const memory: ObsidianMemory = {
       id: `auto_${tick}_${i}_${Math.random().toString(36).slice(2, 9)}`,
-      citizenId: brain.citizenId,
-      type: type as Memory['type'],
+      title: `${citizenName}: ${title}`,
+      type: type as ObsidianMemory['type'],
       content: template,
+      tags,
+      links,
       importance: 0.3 + Math.random() * 0.5,
-      emotion: type === 'emotion' ? 'positive' : 'neutral',
+      emotionalWeight: type === 'emotion' ? 0.6 : 0.1,
       timestamp: Date.now(),
-      decay: 0,
-      associations: links,
+      tick,
+      source: 'auto_memory_generator',
     };
 
     // Add to brain
